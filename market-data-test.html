@@ -205,7 +205,6 @@
     </div>
 
 </div>
-
 <script>
 
 function formatCoins(number) {
@@ -213,137 +212,297 @@ function formatCoins(number) {
 }
 
 
-/*
-    Convert pasted text into numbers.
-    Accepts:
-    12000
-    12,000
-    12k
-    12500
-*/
+/* Convert pasted prices into numbers */
 function parsePrices(text) {
 
     return text
         .split(/[\n,; ]+/)
-        .map(value => value.trim().toLowerCase())
+        .map(v => v.trim().toLowerCase())
         .filter(Boolean)
-        .map(value => {
+        .map(v => {
 
-            if (value.endsWith("k")) {
-                return parseFloat(value.replace("k", "")) * 1000;
+            if (v.endsWith("k")) {
+                return parseFloat(v.replace("k", "")) * 1000;
             }
 
-            return parseFloat(value.replace(/[^0-9.]/g, ""));
+            return parseFloat(
+                v.replace(/[^0-9.]/g, "")
+            );
         })
-        .filter(value => Number.isFinite(value) && value > 0);
+        .filter(v => Number.isFinite(v) && v > 0);
 }
 
 
 /*
-    Create price bands.
+    The important part:
+
+    Instead of fixed ₹1,000 buckets,
+    we group nearby prices together.
 
     Example:
 
-    12000
-    12000
-    12250
-    12500
+    27,500
+    28,000
+    28,250
+    28,500
+    28,750
+    29,000
 
-    becomes one market band.
+    = ONE market cluster.
 */
-function getBandSize(median) {
 
-    if (median < 25000) return 500;
+
+function getGapThreshold(median) {
+
+    if (median < 25000) return 750;
     if (median < 50000) return 1000;
-    if (median < 100000) return 2500;
+    if (median < 100000) return 2000;
 
     return 5000;
 }
 
 
-function calculateMarket(prices) {
+function createClusters(prices) {
 
-    prices.sort((a, b) => a - b);
+    const sorted = [...prices].sort(
+        (a, b) => a - b
+    );
 
-    const median = prices[Math.floor(prices.length / 2)];
+    const median =
+        sorted[Math.floor(sorted.length / 2)];
 
-    const bandSize = getBandSize(median);
+    const gapThreshold =
+        getGapThreshold(median);
 
-    const bands = {};
+    const clusters = [];
 
-    prices.forEach(price => {
+    let current = [sorted[0]];
 
-        const band =
-            Math.floor(price / bandSize) * bandSize;
+    for (let i = 1; i < sorted.length; i++) {
 
-        if (!bands[band]) {
-            bands[band] = [];
+        const previous = sorted[i - 1];
+        const currentPrice = sorted[i];
+
+        const gap =
+            currentPrice - previous;
+
+        if (gap <= gapThreshold) {
+
+            current.push(currentPrice);
+
+        } else {
+
+            clusters.push(current);
+
+            current = [currentPrice];
         }
+    }
 
-        bands[band].push(price);
+    clusters.push(current);
+
+    return clusters.map(values => {
+
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+
+        const span = max - min;
+
+        const count = values.length;
+
+        /*
+            Density rewards clusters that contain
+            many listings in a relatively small range.
+        */
+
+        const density =
+            count / Math.max(span, 500);
+
+        return {
+            values,
+            min,
+            max,
+            span,
+            count,
+            density
+        };
+
     });
+}
 
 
-    const clusters = Object.entries(bands)
-        .map(([price, values]) => ({
-            price: Number(price),
-            count: values.length,
-            values: values
-        }))
-        .sort((a, b) => {
+/*
+    Find the genuine market cluster.
 
-            if (b.count !== a.count) {
-                return b.count - a.count;
-            }
+    We don't blindly choose the largest cluster.
 
-            return a.price - b.price;
+    A cluster must have:
+    - enough listings
+    - reasonable density
+    - not be an obvious isolated outlier
+*/
+
+
+function findMarketCluster(clusters, total) {
+
+    const candidates =
+        clusters.filter(cluster => {
+
+            return cluster.count >= 3;
+
         });
 
 
-    const dominant = clusters[0];
+    if (candidates.length === 0) {
+        return null;
+    }
 
-    const total = prices.length;
 
-    const share =
-        dominant.count / total;
+    candidates.sort((a, b) => {
+
+        /*
+            First preference:
+            number of listings
+        */
+
+        if (b.count !== a.count) {
+            return b.count - a.count;
+        }
+
+
+        /*
+            If counts are equal,
+            prefer the tighter cluster.
+        */
+
+        return b.density - a.density;
+
+    });
+
+
+    return candidates[0];
+}
+
+
+/*
+    Determine whether another cluster is
+    actually an outlier.
+
+    Example:
+
+    Main market: 27.5k–29k
+    High cluster: 60k
+
+    60k is far enough away to be ignored.
+*/
+
+
+function isFarOutlier(cluster, marketCluster) {
+
+    const distanceAbove =
+        cluster.min - marketCluster.max;
+
+    const distanceBelow =
+        marketCluster.min - cluster.max;
+
+    const distance =
+        Math.max(
+            distanceAbove,
+            distanceBelow
+        );
+
+
+    const marketBase =
+        Math.max(
+            marketCluster.min,
+            1000
+        );
+
+
+    return distance > marketBase * 0.20;
+}
+
+
+/*
+    Calculate the complete market plan.
+*/
+
+function calculateMarket(prices) {
+
+    const sorted =
+        [...prices].sort(
+            (a, b) => a - b
+        );
+
+
+    const clusters =
+        createClusters(sorted);
+
+
+    const marketCluster =
+        findMarketCluster(
+            clusters,
+            sorted.length
+        );
+
+
+    if (!marketCluster) {
+        return null;
+    }
 
 
     /*
-        Market selling price:
+        Market selling price.
 
-        Use the lower edge of the dominant
-        price band rather than blindly using
-        the absolute lowest listing.
+        We use the LOWER EDGE of the genuine
+        market cluster.
+
+        This avoids using a random expensive
+        listing as the selling price.
     */
 
-    const marketPrice = dominant.price;
+    const marketPrice =
+        marketCluster.min;
+
+
+    /*
+        EA 5% tax.
+    */
+
+    const tax =
+        Math.floor(
+            marketPrice * 0.05
+        );
+
+
+    const breakEven =
+        marketPrice - tax;
 
 
     /*
         Dynamic safety buffer.
+
+        Strong cluster:
+        10+ listings → ₹500
+
+        Good cluster:
+        6–9 → ₹750
+
+        Smaller cluster:
+        3–5 → ₹1,000
     */
 
     let buffer = 1000;
 
-    if (dominant.count >= 10) {
+    if (marketCluster.count >= 10) {
 
         buffer = 500;
 
-    } else if (dominant.count >= 6) {
+    } else if (marketCluster.count >= 6) {
 
         buffer = 750;
 
-    } else if (dominant.count >= 3) {
-
-        buffer = 1000;
-
     }
 
-
-    const tax = marketPrice * 0.05;
-
-    const breakEven =
-        Math.floor(marketPrice - tax);
 
     const suggestedBuy =
         Math.max(
@@ -352,45 +511,51 @@ function calculateMarket(prices) {
         );
 
 
-    const netSale =
-        marketPrice - tax;
-
-    const profit =
+    const expectedProfit =
         Math.floor(
-            netSale - suggestedBuy
+            marketPrice * 0.95 -
+            suggestedBuy
         );
+
 
     const roi =
         suggestedBuy > 0
-            ? (profit / suggestedBuy) * 100
+            ? expectedProfit /
+              suggestedBuy * 100
             : 0;
 
 
     /*
-        Confidence.
+        Cluster share.
+    */
 
-        We don't want the app to trust
-        a weak or fragmented market.
+    const share =
+        marketCluster.count /
+        sorted.length;
+
+
+    /*
+        Confidence.
     */
 
     let confidence = "LOW";
 
     if (
-        dominant.count >= 10 &&
+        marketCluster.count >= 10 &&
         share >= 0.20
     ) {
 
         confidence = "HIGH";
 
     } else if (
-        dominant.count >= 6 &&
+        marketCluster.count >= 6 &&
         share >= 0.15
     ) {
 
         confidence = "MEDIUM";
 
     } else if (
-        dominant.count >= 3 &&
+        marketCluster.count >= 3 &&
         share >= 0.08
     ) {
 
@@ -399,156 +564,248 @@ function calculateMarket(prices) {
     }
 
 
+    /*
+        Identify other clusters.
+    */
+
+    const otherClusters =
+        clusters.filter(
+            c => c !== marketCluster
+        );
+
+
+    const outliers =
+        otherClusters.filter(
+            c =>
+                isFarOutlier(
+                    c,
+                    marketCluster
+                )
+        );
+
+
     return {
-        total,
-        bandSize,
-        clusters,
-        dominant,
+
+        total: sorted.length,
+
+        marketCluster,
+
         marketPrice,
+
         tax,
+
         breakEven,
+
         buffer,
+
         suggestedBuy,
-        profit,
+
+        expectedProfit,
+
         roi,
-        confidence
+
+        confidence,
+
+        clusters,
+
+        outliers
+
     };
 }
 
 
 document
     .getElementById("calculate")
-    .addEventListener("click", function() {
+    .addEventListener(
+        "click",
+        function () {
 
-        const text =
-            document.getElementById("prices").value;
-
-        const prices =
-            parsePrices(text);
-
-
-        if (prices.length < 3) {
-
-            alert(
-                "Please enter at least 3 market prices."
-            );
-
-            return;
-        }
+            const text =
+                document.getElementById(
+                    "prices"
+                ).value;
 
 
-        const result =
-            calculateMarket(prices);
+            const prices =
+                parsePrices(text);
 
 
-        document
-            .getElementById("results")
-            .style.display = "block";
+            if (prices.length < 3) {
+
+                alert(
+                    "Please enter at least 3 prices."
+                );
+
+                return;
+            }
 
 
-        document
-            .getElementById("count")
-            .textContent =
-                result.total;
+            const result =
+                calculateMarket(prices);
 
 
-        document
-            .getElementById("sellPrice")
-            .textContent =
-                formatCoins(result.marketPrice);
+            if (!result) {
+
+                alert(
+                    "Unable to identify a market cluster."
+                );
+
+                return;
+            }
 
 
-        document
-            .getElementById("tax")
-            .textContent =
-                formatCoins(result.tax);
+            document
+                .getElementById("results")
+                .style.display = "block";
 
 
-        document
-            .getElementById("breakEven")
-            .textContent =
-                formatCoins(result.breakEven);
+            document
+                .getElementById("count")
+                .textContent =
+                    result.total;
 
 
-        document
-            .getElementById("buffer")
-            .textContent =
-                formatCoins(result.buffer);
+            document
+                .getElementById("sellPrice")
+                .textContent =
+                    formatCoins(
+                        result.marketPrice
+                    );
 
 
-        document
-            .getElementById("buyPrice")
-            .textContent =
-                formatCoins(result.suggestedBuy);
+            document
+                .getElementById("tax")
+                .textContent =
+                    formatCoins(
+                        result.tax
+                    );
 
 
-        document
-            .getElementById("profit")
-            .textContent =
-                formatCoins(result.profit);
+            document
+                .getElementById("breakEven")
+                .textContent =
+                    formatCoins(
+                        result.breakEven
+                    );
 
 
-        document
-            .getElementById("roi")
-            .textContent =
-                result.roi.toFixed(1) + "%";
+            document
+                .getElementById("buffer")
+                .textContent =
+                    formatCoins(
+                        result.buffer
+                    );
 
 
-        document
-            .getElementById("confidence")
-            .textContent =
-                result.confidence;
+            document
+                .getElementById("buyPrice")
+                .textContent =
+                    formatCoins(
+                        result.suggestedBuy
+                    );
 
 
-        document
-            .getElementById("clusterInfo")
-            .innerHTML =
+            document
+                .getElementById("profit")
+                .textContent =
+                    formatCoins(
+                        result.expectedProfit
+                    );
+
+
+            document
+                .getElementById("roi")
+                .textContent =
+                    result.roi.toFixed(1) + "%";
+
+
+            document
+                .getElementById("confidence")
+                .textContent =
+                    result.confidence;
+
+
+            document
+                .getElementById("clusterInfo")
+                .innerHTML =
+
                 "<b>Main market cluster:</b> " +
-                formatCoins(result.dominant.price) +
-                " – " +
+
                 formatCoins(
-                    result.dominant.price +
-                    result.bandSize - 1
+                    result.marketCluster.min
                 ) +
+
+                " – " +
+
+                formatCoins(
+                    result.marketCluster.max
+                ) +
+
                 "<br>" +
+
                 "<b>Listings in cluster:</b> " +
-                result.dominant.count +
+
+                result.marketCluster.count +
+
                 " / " +
+
                 result.total +
+
                 "<br>" +
-                "<b>Band size:</b> " +
-                formatCoins(result.bandSize);
+
+                "<b>Other clusters:</b> " +
+
+                result.clusters.length - 1;
 
 
-        let warning = "";
+            let warning = "";
 
 
-        if (result.confidence === "LOW") {
+            if (
+                result.confidence === "HIGH"
+            ) {
 
-            warning =
-                "⚠️ Market is fragmented. " +
-                "Treat this price as uncertain.";
+                warning =
+                    "✓ Strong market cluster detected.";
 
-        } else if (result.confidence === "LOW-MEDIUM") {
+            } else if (
+                result.confidence === "MEDIUM"
+            ) {
 
-            warning =
-                "⚠️ Small dominant cluster. " +
-                "More listings should be checked.";
+                warning =
+                    "✓ Good market cluster detected.";
 
-        } else {
+            } else if (
+                result.confidence === "LOW-MEDIUM"
+            ) {
 
-            warning =
-                "✓ Dominant market cluster detected.";
+                warning =
+                    "⚠️ Market cluster is usable, but more listings would improve confidence.";
+
+            } else {
+
+                warning =
+                    "⚠️ Market is fragmented. Treat the result cautiously.";
+
+            }
+
+
+            if (
+                result.outliers.length > 0
+            ) {
+
+                warning +=
+                    " High/low isolated price clusters were ignored.";
+            }
+
+
+            document
+                .getElementById("warning")
+                .textContent =
+                    warning;
 
         }
-
-
-        document
-            .getElementById("warning")
-            .textContent =
-                warning;
-
-    });
+    );
 
 </script>
 
