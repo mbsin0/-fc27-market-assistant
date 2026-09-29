@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>FC27 Market Price Engine</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        padding: 20px;
+        background: #07100a;
+        color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .container {
+        max-width: 600px;
+        margin: auto;
+    }
+
+    h1 {
+        font-size: 24px;
+        margin-bottom: 4px;
+    }
+
+    .subtitle {
+        color: #9cff75;
+        font-size: 13px;
+        margin-bottom: 20px;
+    }
+
+    .card {
+        background: #111b14;
+        border: 1px solid #263c2b;
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 15px;
+    }
+
+    label {
+        display: block;
+        font-size: 13px;
+        color: #aaa;
+        margin-bottom: 8px;
+    }
+
+    textarea {
+        width: 100%;
+        min-height: 160px;
+        background: #080d09;
+        color: #ffffff;
+        border: 1px solid #38523d;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 14px;
+        resize: vertical;
+    }
+
+    button {
+        width: 100%;
+        margin-top: 12px;
+        padding: 13px;
+        border: 0;
+        border-radius: 10px;
+        background: #39ff00;
+        color: #001000;
+        font-weight: 800;
+        font-size: 15px;
+    }
+
+    .result {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #263c2b;
+    }
+
+    .result:last-child {
+        border-bottom: 0;
+    }
+
+    .value {
+        font-weight: 800;
+        color: #9cff75;
+    }
+
+    .warning {
+        color: #ffd166;
+        font-size: 13px;
+        margin-top: 10px;
+    }
+
+    .confidence {
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .cluster {
+        margin-top: 8px;
+        padding: 10px;
+        background: #0b140d;
+        border-radius: 9px;
+        font-size: 13px;
+    }
+
+    pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 12px;
+        color: #baffaa;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>FC27 Market Price Engine</h1>
+
+    <div class="subtitle">
+        Read-only market analysis • Cluster-based pricing
+    </div>
+
+    <div class="card">
+
+        <label>
+            Paste Buy Now prices from the Transfer Market
+        </label>
+
+        <textarea id="prices" placeholder="Example:
+
+12000
+12000
+12000
+12500
+12500
+13000
+14000
+15000"></textarea>
+
+        <button id="calculate">
+            CALCULATE MARKET PRICE
+        </button>
+
+    </div>
+
+    <div class="card" id="results" style="display:none">
+
+        <div class="result">
+            <span>Listings analysed</span>
+            <span class="value" id="count">-</span>
+        </div>
+
+        <div class="result">
+            <span>Market selling price</span>
+            <span class="value" id="sellPrice">-</span>
+        </div>
+
+        <div class="result">
+            <span>EA tax (5%)</span>
+            <span class="value" id="tax">-</span>
+        </div>
+
+        <div class="result">
+            <span>Break-even Buy Now</span>
+            <span class="value" id="breakEven">-</span>
+        </div>
+
+        <div class="result">
+            <span>Safety buffer</span>
+            <span class="value" id="buffer">-</span>
+        </div>
+
+        <div class="result">
+            <span>Suggested Buy Now</span>
+            <span class="value" id="buyPrice">-</span>
+        </div>
+
+        <div class="result">
+            <span>Expected profit</span>
+            <span class="value" id="profit">-</span>
+        </div>
+
+        <div class="result">
+            <span>ROI</span>
+            <span class="value" id="roi">-</span>
+        </div>
+
+        <div class="result">
+            <span>Confidence</span>
+            <span class="confidence" id="confidence">-</span>
+        </div>
+
+        <div class="cluster" id="clusterInfo"></div>
+
+        <div class="warning" id="warning"></div>
+
+    </div>
+
+</div>
+
+<script>
+
+function formatCoins(number) {
+    return Math.round(number).toLocaleString("en-IN");
+}
+
+
+/*
+    Convert pasted text into numbers.
+    Accepts:
+    12000
+    12,000
+    12k
+    12500
+*/
+function parsePrices(text) {
+
+    return text
+        .split(/[\n,; ]+/)
+        .map(value => value.trim().toLowerCase())
+        .filter(Boolean)
+        .map(value => {
+
+            if (value.endsWith("k")) {
+                return parseFloat(value.replace("k", "")) * 1000;
+            }
+
+            return parseFloat(value.replace(/[^0-9.]/g, ""));
+        })
+        .filter(value => Number.isFinite(value) && value > 0);
+}
+
+
+/*
+    Create price bands.
+
+    Example:
+
+    12000
+    12000
+    12250
+    12500
+
+    becomes one market band.
+*/
+function getBandSize(median) {
+
+    if (median < 25000) return 500;
+    if (median < 50000) return 1000;
+    if (median < 100000) return 2500;
+
+    return 5000;
+}
+
+
+function calculateMarket(prices) {
+
+    prices.sort((a, b) => a - b);
+
+    const median = prices[Math.floor(prices.length / 2)];
+
+    const bandSize = getBandSize(median);
+
+    const bands = {};
+
+    prices.forEach(price => {
+
+        const band =
+            Math.floor(price / bandSize) * bandSize;
+
+        if (!bands[band]) {
+            bands[band] = [];
+        }
+
+        bands[band].push(price);
+    });
+
+
+    const clusters = Object.entries(bands)
+        .map(([price, values]) => ({
+            price: Number(price),
+            count: values.length,
+            values: values
+        }))
+        .sort((a, b) => {
+
+            if (b.count !== a.count) {
+                return b.count - a.count;
+            }
+
+            return a.price - b.price;
+        });
+
+
+    const dominant = clusters[0];
+
+    const total = prices.length;
+
+    const share =
+        dominant.count / total;
+
+
+    /*
+        Market selling price:
+
+        Use the lower edge of the dominant
+        price band rather than blindly using
+        the absolute lowest listing.
+    */
+
+    const marketPrice = dominant.price;
+
+
+    /*
+        Dynamic safety buffer.
+    */
+
+    let buffer = 1000;
+
+    if (dominant.count >= 10) {
+
+        buffer = 500;
+
+    } else if (dominant.count >= 6) {
+
+        buffer = 750;
+
+    } else if (dominant.count >= 3) {
+
+        buffer = 1000;
+
+    }
+
+
+    const tax = marketPrice * 0.05;
+
+    const breakEven =
+        Math.floor(marketPrice - tax);
+
+    const suggestedBuy =
+        Math.max(
+            0,
+            breakEven - buffer
+        );
+
+
+    const netSale =
+        marketPrice - tax;
+
+    const profit =
+        Math.floor(
+            netSale - suggestedBuy
+        );
+
+    const roi =
+        suggestedBuy > 0
+            ? (profit / suggestedBuy) * 100
+            : 0;
+
+
+    /*
+        Confidence.
+
+        We don't want the app to trust
+        a weak or fragmented market.
+    */
+
+    let confidence = "LOW";
+
+    if (
+        dominant.count >= 10 &&
+        share >= 0.20
+    ) {
+
+        confidence = "HIGH";
+
+    } else if (
+        dominant.count >= 6 &&
+        share >= 0.15
+    ) {
+
+        confidence = "MEDIUM";
+
+    } else if (
+        dominant.count >= 3 &&
+        share >= 0.08
+    ) {
+
+        confidence = "LOW-MEDIUM";
+
+    }
+
+
+    return {
+        total,
+        bandSize,
+        clusters,
+        dominant,
+        marketPrice,
+        tax,
+        breakEven,
+        buffer,
+        suggestedBuy,
+        profit,
+        roi,
+        confidence
+    };
+}
+
+
+document
+    .getElementById("calculate")
+    .addEventListener("click", function() {
+
+        const text =
+            document.getElementById("prices").value;
+
+        const prices =
+            parsePrices(text);
+
+
+        if (prices.length < 3) {
+
+            alert(
+                "Please enter at least 3 market prices."
+            );
+
+            return;
+        }
+
+
+        const result =
+            calculateMarket(prices);
+
+
+        document
+            .getElementById("results")
+            .style.display = "block";
+
+
+        document
+            .getElementById("count")
+            .textContent =
+                result.total;
+
+
+        document
+            .getElementById("sellPrice")
+            .textContent =
+                formatCoins(result.marketPrice);
+
+
+        document
+            .getElementById("tax")
+            .textContent =
+                formatCoins(result.tax);
+
+
+        document
+            .getElementById("breakEven")
+            .textContent =
+                formatCoins(result.breakEven);
+
+
+        document
+            .getElementById("buffer")
+            .textContent =
+                formatCoins(result.buffer);
+
+
+        document
+            .getElementById("buyPrice")
+            .textContent =
+                formatCoins(result.suggestedBuy);
+
+
+        document
+            .getElementById("profit")
+            .textContent =
+                formatCoins(result.profit);
+
+
+        document
+            .getElementById("roi")
+            .textContent =
+                result.roi.toFixed(1) + "%";
+
+
+        document
+            .getElementById("confidence")
+            .textContent =
+                result.confidence;
+
+
+        document
+            .getElementById("clusterInfo")
+            .innerHTML =
+                "<b>Main market cluster:</b> " +
+                formatCoins(result.dominant.price) +
+                " – " +
+                formatCoins(
+                    result.dominant.price +
+                    result.bandSize - 1
+                ) +
+                "<br>" +
+                "<b>Listings in cluster:</b> " +
+                result.dominant.count +
+                " / " +
+                result.total +
+                "<br>" +
+                "<b>Band size:</b> " +
+                formatCoins(result.bandSize);
+
+
+        let warning = "";
+
+
+        if (result.confidence === "LOW") {
+
+            warning =
+                "⚠️ Market is fragmented. " +
+                "Treat this price as uncertain.";
+
+        } else if (result.confidence === "LOW-MEDIUM") {
+
+            warning =
+                "⚠️ Small dominant cluster. " +
+                "More listings should be checked.";
+
+        } else {
+
+            warning =
+                "✓ Dominant market cluster detected.";
+
+        }
+
+
+        document
+            .getElementById("warning")
+            .textContent =
+                warning;
+
+    });
+
+</script>
+
+</body>
+</html>
