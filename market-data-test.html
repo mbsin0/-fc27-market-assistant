@@ -460,8 +460,25 @@ function calculateMarket(prices) {
         listing as the selling price.
     */
 
-    const marketPrice =
-        marketCluster.min;
+    // Find the most frequently listed exact price
+const priceCounts = {};
+
+marketCluster.values.forEach(price => {
+    priceCounts[price] =
+        (priceCounts[price] || 0) + 1;
+});
+
+const marketPrice =
+    Object.entries(priceCounts)
+        .sort((a, b) => {
+            // Highest listing count first
+            if (Number(b[1]) !== Number(a[1])) {
+                return Number(b[1]) - Number(a[1]);
+            }
+
+            // If tied, use the lower price
+            return Number(a[0]) - Number(b[0]);
+        })[0][0];
 
 
     /*
