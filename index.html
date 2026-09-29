@@ -2,102 +2,53 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07100b">
 <title>FC27 Market Assistant</title>
-
 <style>
 *{box-sizing:border-box}
-body{
-  margin:0;
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  background:#07100b;
-  color:#fff;
-  padding:20px;
-}
-h1{margin:0 0 5px;font-size:28px}
-.sub{color:#9cff75;margin-bottom:25px}
-.card{
-  background:#111b14;
-  border:1px solid #334d38;
-  border-radius:18px;
-  padding:18px;
-  margin-bottom:16px;
-}
-label{
-  display:block;
-  color:#aaa;
-  margin:12px 0 6px;
-}
-input,select{
-  width:100%;
-  padding:14px;
-  border-radius:10px;
-  border:1px solid #53665a;
-  background:#0b110d;
-  color:#fff;
-  font-size:17px;
-}
-button{
-  width:100%;
-  padding:16px;
-  border:0;
-  border-radius:12px;
-  background:#39ff00;
-  color:#001000;
-  font-weight:800;
-  font-size:18px;
-  margin-top:15px;
-}
-.result{
-  border:1px solid #39ff00;
-  border-radius:14px;
-  padding:15px;
-  margin-top:15px;
-}
-.row{
-  display:flex;
-  justify-content:space-between;
-  padding:9px 0;
-  border-bottom:1px solid #263329;
-}
-.value{font-weight:800;color:#8cff55}
-.warning{
-  margin-top:15px;
-  padding:13px;
-  border-radius:10px;
-  background:#251d05;
-  color:#ffd75a;
-}
-.safe{
-  margin-top:15px;
-  padding:13px;
-  border-radius:10px;
-  background:#09200d;
-  color:#7dff73;
-}
-.small{font-size:13px;color:#888;margin-top:10px}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#07100b;color:#fff;padding:16px;max-width:720px;margin:auto}
+h1{margin:0;font-size:28px}.sub{color:#9cff75;margin:4px 0 18px}
+.card{background:#111b14;border:1px solid #334d38;border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 8px 24px #0005}
+label{display:block;color:#aaa;margin:12px 0 6px;font-size:14px}
+input,select{width:100%;padding:14px;border-radius:11px;border:1px solid #53665a;background:#0b110d;color:#fff;font-size:17px;outline:none}
+input:focus,select:focus{border-color:#39ff00}
+button{width:100%;padding:15px;border:0;border-radius:12px;background:#39ff00;color:#001000;font-weight:800;font-size:17px;margin-top:14px}
+button.secondary{background:#1b281e;color:#baffaa;border:1px solid #39543e}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.result{border:1px solid #39ff00;border-radius:14px;padding:12px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #263329}
+.row:last-child{border-bottom:0}.value{font-weight:800;color:#8cff55;text-align:right}
+.ladder{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.bid{background:#0b110d;border:1px solid #334d38;border-radius:11px;padding:10px;text-align:center}
+.bid span{display:block;color:#888;font-size:12px}.bid b{display:block;color:#fff;margin-top:4px}
+.safe{margin-top:13px;padding:13px;border-radius:11px;background:#09200d;color:#7dff73}
+.warn{background:#251d05;color:#ffd75a}.danger{background:#250d0d;color:#ff8d8d}
+.small{font-size:12px;color:#888;line-height:1.45;margin-top:10px}
+.pill{display:inline-block;padding:5px 9px;border-radius:99px;background:#19301d;color:#9cff75;font-size:12px;font-weight:700}
+@media(max-width:430px){body{padding:12px}.grid{grid-template-columns:1fr}}
 </style>
 </head>
-
 <body>
-
 <h1>FC27 Market Assistant</h1>
-<div class="sub">Stevie's Sniper • Market Calculator</div>
+<div class="sub">Market Calculator <span class="pill">v2</span></div>
 
 <div class="card">
-
 <label>Player Name</label>
-<input id="player" placeholder="Type player name..." oninput="updatePlayer()">
+<input id="player" list="players" placeholder="Type player name..." autocomplete="off" oninput="updatePlayer()">
+<datalist id="players">
+<option value="Kylian Mbappe"><option value="Erling Haaland"><option value="Vinicius Jr">
+<option value="Jude Bellingham"><option value="Lamine Yamal"><option value="Mohamed Salah">
+<option value="Bukayo Saka"><option value="Rodri"><option value="Virgil van Dijk">
+<option value="William Saliba"><option value="Achraf Hakimi"><option value="Benjamin Sesko">
+<option value="Alexander Isak">
+</datalist>
+<div id="playerDisplay" class="small">Player: —</div>
 
-<div id="playerDisplay" class="small">
-Player: —
+<div class="grid">
+<div><label>Current Market Sell Price</label><input id="sellMarket" type="number" inputmode="numeric" placeholder="41750"></div>
+<div><label>Desired Profit</label><input id="profitTarget" type="number" inputmode="numeric" value="150"></div>
 </div>
-
-<label>Current / Instant Sell Price</label>
-<input id="sellMarket" type="number" placeholder="Example: 41750">
-
-<label>Desired Profit</label>
-<input id="profitTarget" type="number" value="150">
 
 <label>Bid Search Step</label>
 <select id="step">
@@ -106,172 +57,103 @@ Player: —
 <option value="200">+200</option>
 </select>
 
-<button onclick="calculate()">CALCULATE</button>
-
+<button onclick="calculate()">CALCULATE MARKET PLAN</button>
 </div>
 
 <div id="result" class="card" style="display:none">
-
-<h2>Sniping Result</h2>
-
+<h2 style="margin-top:0">Market Plan</h2>
 <div class="result">
-
-<div class="row">
-<span>Player</span>
-<span id="rPlayer" class="value">—</span>
+<div class="row"><span>Player</span><span id="rPlayer" class="value">—</span></div>
+<div class="row"><span>Market Sell Price</span><span id="rSell" class="value">—</span></div>
+<div class="row"><span>EA Tax (assumed 5%)</span><span id="rTax" class="value">—</span></div>
+<div class="row"><span>Net After Tax</span><span id="rNet" class="value">—</span></div>
+<div class="row"><span>Maximum Buy Now</span><span id="rBuyNow" class="value">—</span></div>
+<div class="row"><span>Suggested Sell Price</span><span id="rOptimal" class="value">—</span></div>
+<div class="row"><span>Maximum Safe Bid</span><span id="rBid" class="value">—</span></div>
+<div class="row"><span>Expected Profit</span><span id="rProfit" class="value">—</span></div>
+<div class="row"><span>ROI</span><span id="rRoi" class="value">—</span></div>
 </div>
 
-<div class="row">
-<span>Market Sell Price</span>
-<span id="rSell" class="value">—</span>
-</div>
-
-<div class="row">
-<span>EA Tax (5%)</span>
-<span id="rTax" class="value">—</span>
-</div>
-
-<div class="row">
-<span>Maximum Buy Now</span>
-<span id="rBuyNow" class="value">—</span>
-</div>
-
-<div class="row">
-<span>Optimal Selling Price</span>
-<span id="rOptimal" class="value">—</span>
-</div>
-
-<div class="row">
-<span>Maximum Bid</span>
-<span id="rBid" class="value">—</span>
-</div>
-
-<div class="row">
-<span>Expected Profit</span>
-<span id="rProfit" class="value">—</span>
-</div>
-
+<h3>Manual Bid Ladder</h3>
+<div class="ladder">
+<div class="bid"><span>Search 1</span><b id="bid1">50</b></div>
+<div class="bid"><span>Search 2</span><b id="bid2">100</b></div>
+<div class="bid"><span>Search 3</span><b id="bid3">200</b></div>
 </div>
 
 <div id="safety" class="safe"></div>
-
-<div class="small">
-Bid sequence: start at 50 → 100 → 200 increments.  
-Maximum Buy Now remains fixed.
+<button class="secondary" onclick="copyPlan()">COPY MARKET PLAN</button>
+<div class="small">Enter the current market price manually. This is a calculator/manual-assist tool; it does not log into EA, place bids, buy cards, list cards, bypass CAPTCHAs, or evade EA protections.</div>
 </div>
 
+<div class="card">
+<h3 style="margin-top:0">Safety Checklist</h3>
+<div class="small">
+✓ Keep EA credentials out of this page<br>
+✓ Verify live market prices before acting<br>
+✓ Keep purchases and listings under manual control<br>
+✓ Do not bypass CAPTCHAs, market limits, or security controls<br>
+✓ Do not use coin-transfer or botting methods
+</div>
 </div>
 
 <script>
-
-function coins(n){
-  return Math.floor(n).toLocaleString();
-}
-
+const fmt=n=>Math.floor(n).toLocaleString("en-US");
+const optimalSell=s=>{
+ if(s>=100000)return Math.max(0,Math.floor(s/1000)*1000-100);
+ if(s>=50000)return Math.max(0,Math.floor(s/500)*500-100);
+ if(s>=10000)return Math.max(0,Math.floor(s/250)*250-50);
+ return Math.max(0,Math.floor(s/100)*100-50);
+};
 function updatePlayer(){
-  const name=document.getElementById("player").value.trim();
-  document.getElementById("playerDisplay").innerText =
-    "Player: " + (name || "—");
+ const p=document.getElementById("player").value.trim();
+ document.getElementById("playerDisplay").textContent="Player: "+(p||"—");
 }
-
 function calculate(){
-
-  const player =
-    document.getElementById("player").value.trim() || "Unknown Player";
-
-  const sell =
-    Number(document.getElementById("sellMarket").value);
-
-  const target =
-    Number(document.getElementById("profitTarget").value) || 0;
-
-  const step =
-    Number(document.getElementById("step").value);
-
-  if(!sell || sell<=0){
-    alert("Enter the current market selling price.");
-    return;
-  }
-
-  /*
-    FC transfer-market tax:
-    5% of final selling price.
-  */
-
-  const tax = sell * 0.05;
-
-  /*
-    Maximum purchase price while still
-    achieving the requested profit.
-  */
-
-  const maxBuyNow =
-    Math.floor(sell - tax - target);
-
-  /*
-    Optimal selling price:
-    slightly below the current market price
-    so the card remains competitive.
-  */
-
-  let optimalSell = sell;
-
-  if(sell >= 100000){
-    optimalSell = Math.floor(sell / 1000) * 1000 - 100;
-  }
-  else if(sell >= 50000){
-    optimalSell = Math.floor(sell / 500) * 500 - 100;
-  }
-  else if(sell >= 10000){
-    optimalSell = Math.floor(sell / 250) * 250 - 50;
-  }
-  else{
-    optimalSell = Math.floor(sell / 100) * 100 - 50;
-  }
-
-  /*
-    Maximum bid that still gives target profit.
-    Bids can then be searched progressively.
-  */
-
-  const maxBid =
-    Math.floor((maxBuyNow - 1) / step) * step;
-
-  const profit =
-    Math.floor(maxBid - 0);
-
-  const actualProfit =
-    Math.floor(optimalSell * 0.95 - maxBid);
-
-  document.getElementById("result").style.display="block";
-
-  document.getElementById("rPlayer").innerText=player;
-  document.getElementById("rSell").innerText=coins(sell);
-  document.getElementById("rTax").innerText=coins(tax);
-  document.getElementById("rBuyNow").innerText=coins(maxBuyNow);
-  document.getElementById("rOptimal").innerText=coins(optimalSell);
-  document.getElementById("rBid").innerText=coins(maxBid);
-  document.getElementById("rProfit").innerText=coins(actualProfit);
-
-  let safetyText="";
-
-  if(actualProfit < target){
-    safetyText =
-      "⚠️ SAFETY WARNING: This price does not meet your target profit.";
-  }
-  else if(actualProfit < target + 100){
-    safetyText =
-      "⚠️ LOW SAFETY MARGIN: Consider a lower buy price.";
-  }
-  else{
-    safetyText =
-      "✓ SAFE RANGE: Target profit is protected. Avoid bidding above the maximum bid.";
-  }
-
-  document.getElementById("safety").innerText=safetyText;
+ const player=document.getElementById("player").value.trim()||"Unknown Player";
+ const sell=Number(document.getElementById("sellMarket").value);
+ const target=Math.max(0,Number(document.getElementById("profitTarget").value)||0);
+ const step=Number(document.getElementById("step").value)||100;
+ if(!sell||sell<=0){alert("Enter the current market selling price.");return;}
+ const tax=sell*.05, net=sell-tax;
+ const maxBuyNow=Math.max(0,Math.floor(net-target));
+ const suggested=optimalSell(sell);
+ const maxBid=Math.max(0,Math.floor((maxBuyNow-1)/step)*step);
+ const profit=Math.floor(suggested*.95-maxBid);
+ const roi=maxBid>0?(profit/maxBid)*100:0;
+ document.getElementById("result").style.display="block";
+ document.getElementById("rPlayer").textContent=player;
+ document.getElementById("rSell").textContent=fmt(sell);
+ document.getElementById("rTax").textContent=fmt(tax);
+ document.getElementById("rNet").textContent=fmt(net);
+ document.getElementById("rBuyNow").textContent=fmt(maxBuyNow);
+ document.getElementById("rOptimal").textContent=fmt(suggested);
+ document.getElementById("rBid").textContent=fmt(maxBid);
+ document.getElementById("rProfit").textContent=fmt(profit);
+ document.getElementById("rRoi").textContent=roi.toFixed(1)+"%";
+ document.getElementById("bid1").textContent="50";
+ document.getElementById("bid2").textContent="100";
+ document.getElementById("bid3").textContent="200";
+ const safety=document.getElementById("safety");
+ safety.className="safe";
+ if(maxBuyNow<=0||profit<target){safety.className="safe danger";safety.textContent="⛔ DO NOT BUY: the configured target profit is not protected.";}
+ else if(profit<target+100){safety.className="safe warn";safety.textContent="⚠️ LOW MARGIN: staying below the maximum safe bid gives more room.";}
+ else{safety.textContent="✓ CALCULATED RANGE: target profit is protected at the shown threshold.";}
+ window.lastPlan={player,sell,maxBuyNow,suggested,maxBid,profit,roi};
 }
-
+function copyPlan(){
+ if(!window.lastPlan){alert("Calculate a market plan first.");return;}
+ const p=window.lastPlan;
+ const text=`FC27 MARKET PLAN
+Player: ${p.player}
+Market Sell: ${fmt(p.sell)}
+Max Buy Now: ${fmt(p.maxBuyNow)}
+Suggested Sell: ${fmt(p.suggested)}
+Max Safe Bid: ${fmt(p.maxBid)}
+Expected Profit: ${fmt(p.profit)}
+ROI: ${p.roi.toFixed(1)}%`;
+ navigator.clipboard?.writeText(text).then(()=>alert("Market plan copied.")).catch(()=>alert(text));
+}
 </script>
-
 </body>
 </html>
