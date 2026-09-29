@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "FC27 Market Assistant",
+  "version": "0.1.0",
+  "description": "Read-only FC27 Web App market data tester.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.ea.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.ea.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
