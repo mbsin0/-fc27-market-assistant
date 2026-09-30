@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FC27 Market Assistant
 // @namespace    mbsin0-fc27
-// @version      0.2.0
+// @version      0.3.0
 // @description  Read-only FC27 Transfer Market listing scanner
 // @match        https://www.ea.com/*
 // @run-at       document-idle
@@ -34,11 +34,10 @@
         panel.style.cssText = `
             position:fixed;
             right:12px;
-            top:60%;
-            transform:translateY(-50%);
+            bottom:120px;
             z-index:2147483647;
-            width:300px;
-            max-height:55vh;
+            width:280px;
+            max-height:45vh;
             overflow:auto;
             background:#111b14;
             color:#fff;
@@ -124,102 +123,4 @@
 
             const matches =
                 text.match(
-                    /\b\d{1,3}(?:,\d{3})+\b|\b\d{4,6}\b/g
-                ) || [];
-
-            const prices =
-                matches
-                    .map(value =>
-                        Number(
-                            value.replace(/,/g, "")
-                        )
-                    )
-                    .filter(value =>
-                        value >= 500 &&
-                        value <= 15000000
-                    );
-
-            count.textContent =
-                "Numbers detected: " +
-                prices.length;
-
-            if (!prices.length) {
-
-                output.textContent =
-                    "No readable prices found.";
-
-                return;
-            }
-
-            output.textContent =
-                prices
-                    .map(
-                        (price, i) =>
-                            (i + 1) +
-                            ". " +
-                            price.toLocaleString("en-IN")
-                    )
-                    .join("\n");
-        });
-    }
-
-
-    function removePanel() {
-
-        if (!panel) {
-            return;
-        }
-
-        panel.remove();
-        panel = null;
-    }
-
-
-    function checkPage() {
-
-        if (isMarketPage()) {
-            createPanel();
-        } else {
-            removePanel();
-        }
-    }
-
-
-    /*
-     * EA FC uses dynamic page navigation.
-     * Watch for changes and recreate the
-     * assistant when Transfer Market appears.
-     */
-
-    const observer =
-        new MutationObserver(function () {
-
-            if (!panel && isMarketPage()) {
-                createPanel();
-            }
-
-            if (
-                panel &&
-                !document.body.contains(panel)
-            ) {
-                panel = null;
-
-                if (isMarketPage()) {
-                    createPanel();
-                }
-            }
-        });
-
-
-    observer.observe(
-        document.documentElement,
-        {
-            childList: true,
-            subtree: true
-        }
-    );
-
-
-    checkPage();
-
-})();
+                    /\b\d{1,3}(?:,\d{
