@@ -18,7 +18,7 @@
     panel.style.cssText = `
         position:fixed;
         right:12px;
-top:120px;
+top:60%;
         z-index:2147483647;
         width:300px;
         max-height:65vh;
@@ -83,7 +83,7 @@ top:120px;
         </pre>
     `;
 
-    document.documentElement.appendChild(panel);
+    document.body.appendChild(panel);
 
     const status =
         panel.querySelector("#fc27-status");
