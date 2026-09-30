@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FC27 Market Assistant
 // @namespace    mbsin0-fc27
-// @version      0.6.0
+// @version      0.6.1
 // @description  Read-only FC27 Transfer Market scanner
 // @match        https://www.ea.com/*
 // @run-at       document-idle
@@ -19,12 +19,17 @@
         pages: 0,
         listings: [],
         status: "Ready",
-        lastPageSignature: "",
         seenPages: new Set()
     };
 
+    // --------------------------------------------------
+    // BASIC HELPERS
+    // --------------------------------------------------
+
     function isVisible(el) {
-        if (!el || !document.documentElement.contains(el)) return false;
+        if (!el || !document.documentElement.contains(el)) {
+            return false;
+        }
 
         const style = getComputedStyle(el);
         const rect = el.getBoundingClientRect();
@@ -51,37 +56,61 @@
         );
     }
 
+    // --------------------------------------------------
+    // FIND INDIVIDUAL LISTING CARDS
+    // --------------------------------------------------
+
     function getListingCandidates() {
-        if (!document.body) return [];
+        if (!document.body) {
+            return [];
+        }
 
         return Array.from(
             document.querySelectorAll("body *")
         ).filter(function (el) {
-            if (!isVisible(el)) return false;
-            if (container && container.contains(el)) return false;
+
+            if (!isVisible(el)) {
+                return false;
+            }
+
+            if (container && container.contains(el)) {
+                return false;
+            }
 
             const text = cleanText(el.innerText);
 
-            if (!hasListingData(text)) return false;
+            if (!hasListingData(text)) {
+                return false;
+            }
 
             /*
-             * Prefer the smallest element that contains
-             * one complete listing rather than every
-             * parent container above it.
+             * If a child already contains the complete
+             * listing, this element is a parent wrapper.
+             *
+             * We want the smallest useful listing element.
              */
-            const childMatch = Array.from(el.children).some(function (child) {
-                if (!isVisible(child)) return false;
+            const childContainsListing =
+                Array.from(el.children).some(function (child) {
 
-                const childText = cleanText(child.innerText);
+                    if (!isVisible(child)) {
+                        return false;
+                    }
 
-                return hasListingData(childText);
-            });
+                    return hasListingData(
+                        cleanText(child.innerText)
+                    );
+                });
 
-            return !childMatch;
+            return !childContainsListing;
         });
     }
 
+    // --------------------------------------------------
+    // NUMBER EXTRACTION
+    // --------------------------------------------------
+
     function extractNumber(text, label) {
+
         const regex = new RegExp(
             label + "\\s*:?\\s*([\\d,]+)",
             "i"
@@ -89,42 +118,70 @@
 
         const match = text.match(regex);
 
-        if (!match) return null;
+        if (!match) {
+            return null;
+        }
 
         return Number(
             match[1].replace(/,/g, "")
         );
     }
 
+    // --------------------------------------------------
+    // TIMER EXTRACTION
+    // --------------------------------------------------
+
     function extractTime(text) {
+
         const match = text.match(
             /Time\s+(.+?)(?=\s+(?:Start Price|Bid|Buy Now)|$)/i
         );
 
-        return match ? match[1].trim() : "";
+        return match
+            ? match[1].trim()
+            : "";
     }
 
+    // --------------------------------------------------
+    // EXTRACT ONE LISTING
+    // --------------------------------------------------
+
     function extractListing(el) {
+
         const text = cleanText(el.innerText);
 
-        const startPrice = extractNumber(text, "Start Price");
-        const buyNow = extractNumber(text, "Buy Now");
-        const bid = extractNumber(text, "Bid");
-        const time = extractTime(text);
-
         return {
-            startPrice,
-            bid,
-            buyNow,
-            time,
+            startPrice: extractNumber(
+                text,
+                "Start Price"
+            ),
+
+            bid: extractNumber(
+                text,
+                "Bid"
+            ),
+
+            buyNow: extractNumber(
+                text,
+                "Buy Now"
+            ),
+
+            time: extractTime(text),
+
             raw: text
         };
     }
 
+    // --------------------------------------------------
+    // GET CURRENT PAGE LISTINGS
+    // --------------------------------------------------
+
     function getCurrentListings() {
+
         return getListingCandidates()
             .map(extractListing)
             .filter(function (listing) {
+
                 return (
                     Number.isFinite(listing.buyNow) &&
                     listing.buyNow >= 500 &&
@@ -133,20 +190,33 @@
             });
     }
 
+    // --------------------------------------------------
+    // PAGE SIGNATURE
+    // IMPORTANT:
+    // TIMER IS NOT INCLUDED.
+    // --------------------------------------------------
+
     function pageSignature(listings) {
+
         return listings
             .map(function (x) {
+
                 return [
                     x.startPrice,
                     x.bid,
-                    x.buyNow,
-                    x.time
+                    x.buyNow
                 ].join("|");
+
             })
             .join(";");
     }
 
+    // --------------------------------------------------
+    // FIND NEXT BUTTON
+    // --------------------------------------------------
+
     function findNextButton() {
+
         const elements = Array.from(
             document.querySelectorAll(
                 "button, [role='button'], a"
@@ -154,36 +224,69 @@
         );
 
         return elements.find(function (el) {
-            if (!isVisible(el)) return false;
-            if (container && container.contains(el)) return false;
 
-            const text = cleanText(el.innerText);
+            if (!isVisible(el)) {
+                return false;
+            }
+
+            if (container && container.contains(el)) {
+                return false;
+            }
+
+            const text = cleanText(
+                el.innerText
+            );
 
             return /^Next$/i.test(text);
+
         }) || null;
     }
 
+    // --------------------------------------------------
+    // CHECK IF BUTTON DISABLED
+    // --------------------------------------------------
+
     function isDisabled(el) {
-        if (!el) return true;
+
+        if (!el) {
+            return true;
+        }
 
         return (
             el.disabled === true ||
             el.getAttribute("aria-disabled") === "true" ||
-            /disabled/i.test(el.className || "")
+            /disabled/i.test(
+                el.className || ""
+            )
         );
     }
 
+    // --------------------------------------------------
+    // WAIT
+    // --------------------------------------------------
+
     function wait(ms) {
+
         return new Promise(function (resolve) {
             setTimeout(resolve, ms);
         });
     }
 
+    // --------------------------------------------------
+    // WAIT FOR LISTINGS
+    // --------------------------------------------------
+
     async function waitForListings(timeout = 5000) {
+
         const started = Date.now();
 
-        while (Date.now() - started < timeout) {
-            const listings = getCurrentListings();
+        while (
+            Date.now() - started <
+            timeout
+        ) {
+
+            const listings =
+                getCurrentListings();
 
             if (listings.length > 0) {
                 return listings;
@@ -195,19 +298,45 @@
         return [];
     }
 
-    async function waitForNewPage(oldSignature, timeout = 6000) {
+    // --------------------------------------------------
+    // WAIT FOR NEW PAGE
+    // --------------------------------------------------
+
+    async function waitForNewPage(
+        oldSignature,
+        timeout = 6000
+    ) {
+
         const started = Date.now();
 
-        while (Date.now() - started < timeout) {
+        while (
+            Date.now() - started <
+            timeout
+        ) {
+
             await wait(300);
 
-            const listings = getCurrentListings();
+            const listings =
+                getCurrentListings();
 
-            if (!listings.length) continue;
+            if (!listings.length) {
+                continue;
+            }
 
-            const signature = pageSignature(listings);
+            /*
+             * IMPORTANT:
+             * Compare only listing prices.
+             * Auction timers are ignored.
+             */
 
-            if (signature && signature !== oldSignature) {
+            const signature =
+                pageSignature(listings);
+
+            if (
+                signature &&
+                signature !== oldSignature
+            ) {
+
                 return listings;
             }
         }
@@ -215,40 +344,101 @@
         return [];
     }
 
+    // --------------------------------------------------
+    // TIMER HELPERS
+    // --------------------------------------------------
+
     function parseSeconds(timeText) {
-        const text = (timeText || "").toLowerCase();
 
-        if (text.includes("expired")) return 0;
+        const text =
+            (timeText || "").toLowerCase();
 
-        const seconds = text.match(/(\d+)\s*second/);
-        if (seconds) return Number(seconds[1]);
+        if (
+            text.includes("expired")
+        ) {
+            return 0;
+        }
 
-        const minutes = text.match(/(\d+)\s*minute/);
-        if (minutes) return Number(minutes[1]) * 60;
+        const seconds =
+            text.match(
+                /(\d+)\s*second/
+            );
 
-        const hours = text.match(/(\d+)\s*hour/);
-        if (hours) return Number(hours[1]) * 3600;
+        if (seconds) {
+            return Number(
+                seconds[1]
+            );
+        }
+
+        const minutes =
+            text.match(
+                /(\d+)\s*minute/
+            );
+
+        if (minutes) {
+            return Number(
+                minutes[1]
+            ) * 60;
+        }
+
+        const hours =
+            text.match(
+                /(\d+)\s*hour/
+            );
+
+        if (hours) {
+            return Number(
+                hours[1]
+            ) * 3600;
+        }
 
         return null;
     }
 
     function timerLabel(timeText) {
-        const seconds = parseSeconds(timeText);
 
-        if (seconds === null) return "";
+        const seconds =
+            parseSeconds(timeText);
 
-        if (seconds <= 10) return "🔥 ENDING NOW";
-        if (seconds <= 30) return "⚡ UNDER 30 SEC";
-        if (seconds <= 60) return "⏱ UNDER 1 MIN";
-        if (seconds <= 300) return "WATCH";
+        if (seconds === null) {
+            return "";
+        }
+
+        if (seconds <= 10) {
+            return "🔥 ENDING NOW";
+        }
+
+        if (seconds <= 30) {
+            return "⚡ UNDER 30 SEC";
+        }
+
+        if (seconds <= 60) {
+            return "⏱ UNDER 1 MIN";
+        }
+
+        if (seconds <= 300) {
+            return "WATCH";
+        }
 
         return "NORMAL";
     }
 
+    // --------------------------------------------------
+    // UI
+    // --------------------------------------------------
+
     function render() {
-        if (!container) return;
+
+        if (!container) {
+            return;
+        }
+
+        // ------------------------------
+        // MINIMIZED
+        // ------------------------------
 
         if (minimized) {
+
             container.innerHTML = `
                 <button
                     id="fc27-mini-button"
@@ -262,28 +452,53 @@
                         color:#39ff00;
                         font-size:12px;
                         font-weight:900;
-                        box-shadow:0 4px 18px rgba(0,0,0,.55);
+                        box-shadow:
+                            0 4px 18px rgba(0,0,0,.55);
                     ">
                     FC27
                 </button>
             `;
 
             container
-                .querySelector("#fc27-mini-button")
-                .addEventListener("click", function () {
-                    minimized = false;
-                    render();
-                });
+                .querySelector(
+                    "#fc27-mini-button"
+                )
+                .addEventListener(
+                    "click",
+                    function () {
+
+                        minimized = false;
+
+                        render();
+                    }
+                );
 
             return;
         }
 
-        const shortTimers = scanState.listings.filter(function (x) {
-            const seconds = parseSeconds(x.time);
-            return seconds !== null && seconds <= 60 && seconds > 0;
-        }).length;
+        // ------------------------------
+        // EXPANDED
+        // ------------------------------
+
+        const shortTimers =
+            scanState.listings.filter(
+                function (x) {
+
+                    const seconds =
+                        parseSeconds(
+                            x.time
+                        );
+
+                    return (
+                        seconds !== null &&
+                        seconds <= 60 &&
+                        seconds > 0
+                    );
+                }
+            ).length;
 
         container.innerHTML = `
+
             <div style="
                 width:300px;
                 max-height:55vh;
@@ -293,7 +508,8 @@
                 border:2px solid #39ff00;
                 border-radius:14px;
                 padding:14px;
-                box-shadow:0 8px 30px rgba(0,0,0,.6);
+                box-shadow:
+                    0 8px 30px rgba(0,0,0,.6);
             ">
 
                 <div style="
@@ -301,7 +517,9 @@
                     justify-content:space-between;
                     align-items:center;
                 ">
+
                     <div>
+
                         <div style="
                             font-size:18px;
                             font-weight:800;
@@ -316,6 +534,7 @@
                         ">
                             READ-ONLY
                         </div>
+
                     </div>
 
                     <button
@@ -332,6 +551,7 @@
                         ">
                         −
                     </button>
+
                 </div>
 
                 <div style="
@@ -355,7 +575,11 @@
                         color:#001000;
                         font-weight:800;
                     ">
-                    ${scanState.running ? "SCANNING..." : "SCAN ALL PAGES"}
+                    ${
+                        scanState.running
+                            ? "SCANNING..."
+                            : "SCAN ALL PAGES"
+                    }
                 </button>
 
                 <div style="
@@ -363,14 +587,24 @@
                     color:#9cff75;
                     font-size:14px;
                 ">
-                    Pages: ${scanState.pages}
+
+                    Pages:
+                    ${scanState.pages}
+
                     <br>
-                    Listings: ${scanState.listings.length}
+
+                    Listings:
+                    ${scanState.listings.length}
+
                     <br>
-                    Ending within 1 min: ${shortTimers}
+
+                    Ending within 1 min:
+                    ${shortTimers}
+
                 </div>
 
-                <pre id="fc27-output"
+                <pre
+                    id="fc27-output"
                     style="
                         white-space:pre-wrap;
                         word-break:break-word;
@@ -379,20 +613,44 @@
                         max-height:300px;
                         overflow:auto;
                         margin-top:10px;
-                    ">${buildOutput()}</pre>
+                    "
+                >${buildOutput()}</pre>
+
             </div>
         `;
 
+        // ------------------------------
+        // MINIMIZE BUTTON
+        // ------------------------------
+
         container
-            .querySelector("#fc27-minimize")
-            .addEventListener("click", function () {
-                minimized = true;
-                render();
-            });
+            .querySelector(
+                "#fc27-minimize"
+            )
+            .addEventListener(
+                "click",
+                function () {
 
-        const scanButton = container.querySelector("#fc27-scan");
+                    minimized = true;
 
-        if (scanButton && !scanState.running) {
+                    render();
+                }
+            );
+
+        // ------------------------------
+        // SCAN BUTTON
+        // ------------------------------
+
+        const scanButton =
+            container.querySelector(
+                "#fc27-scan"
+            );
+
+        if (
+            scanButton &&
+            !scanState.running
+        ) {
+
             scanButton.addEventListener(
                 "click",
                 scanAllPages
@@ -400,69 +658,155 @@
         }
     }
 
+    // --------------------------------------------------
+    // BUILD RESULT OUTPUT
+    // --------------------------------------------------
+
     function buildOutput() {
-        if (!scanState.listings.length) {
+
+        if (
+            !scanState.listings.length
+        ) {
+
             return "No listings scanned yet.";
         }
 
         return scanState.listings
             .map(function (x, index) {
-                const timer = timerLabel(x.time);
+
+                const timer =
+                    timerLabel(
+                        x.time
+                    );
 
                 return (
                     (index + 1) +
                     ". BIN " +
-                    x.buyNow.toLocaleString("en-IN") +
+                    x.buyNow.toLocaleString(
+                        "en-IN"
+                    ) +
                     " | Start " +
-                    (x.startPrice ?? "-").toLocaleString("en-IN") +
+                    (
+                        x.startPrice ??
+                        "-"
+                    ).toLocaleString(
+                        "en-IN"
+                    ) +
                     " | Bid " +
-                    (x.bid ?? "-") +
+                    (
+                        x.bid ??
+                        "-"
+                    ) +
                     " | " +
-                    (x.time || "-") +
-                    (timer ? " | " + timer : "")
+                    (
+                        x.time ||
+                        "-"
+                    ) +
+                    (
+                        timer
+                            ? " | " + timer
+                            : ""
+                    )
                 );
+
             })
             .join("\n");
     }
 
+    // --------------------------------------------------
+    // MAIN SCANNER
+    // --------------------------------------------------
+
     async function scanAllPages() {
-        if (scanState.running) return;
+
+        if (scanState.running) {
+            return;
+        }
 
         scanState.running = true;
+
         scanState.pages = 0;
+
         scanState.listings = [];
-        scanState.seenPages = new Set();
-        scanState.status = "Starting scanner...";
+
+        scanState.seenPages =
+            new Set();
+
+        scanState.status =
+            "Starting scanner...";
 
         render();
 
         while (true) {
-            const listings = await waitForListings();
 
-            if (!listings.length) {
+            // ------------------------------
+            // READ CURRENT PAGE
+            // ------------------------------
+
+            const listings =
+                await waitForListings();
+
+            if (
+                !listings.length
+            ) {
+
                 scanState.status =
                     "No readable listings found.";
+
                 break;
             }
 
-            const signature = pageSignature(listings);
+            // ------------------------------
+            // IDENTIFY PAGE
+            // ------------------------------
 
-            if (scanState.seenPages.has(signature)) {
+            const signature =
+                pageSignature(
+                    listings
+                );
+
+            /*
+             * If this exact price/bid/start
+             * combination was already seen,
+             * we are looking at the same page.
+             *
+             * Timer changes do NOT affect this.
+             */
+
+            if (
+                scanState.seenPages.has(
+                    signature
+                )
+            ) {
+
                 scanState.status =
-                    "Page repeated. Scan finished.";
+                    "Same page detected — scan finished.";
+
                 break;
             }
 
-            scanState.seenPages.add(signature);
+            scanState.seenPages.add(
+                signature
+            );
+
+            // ------------------------------
+            // STORE EVERY LISTING
+            // ------------------------------
 
             scanState.pages += 1;
 
             /*
              * IMPORTANT:
-             * We intentionally do NOT remove repeated prices.
-             * Every card is treated as a separate listing.
+             *
+             * We DO NOT remove duplicate prices.
+             *
+             * Three cards at 21,000 =
+             * three separate listings.
              */
-            scanState.listings.push(...listings);
+
+            scanState.listings.push(
+                ...listings
+            );
 
             scanState.status =
                 "Page " +
@@ -473,15 +817,30 @@
 
             render();
 
-            const nextButton = findNextButton();
+            // ------------------------------
+            // FIND NEXT
+            // ------------------------------
 
-            if (!nextButton || isDisabled(nextButton)) {
+            const nextButton =
+                findNextButton();
+
+            if (
+                !nextButton ||
+                isDisabled(nextButton)
+            ) {
+
                 scanState.status =
                     "Finished — last page reached.";
+
                 break;
             }
 
-            const oldSignature = signature;
+            // ------------------------------
+            // SAVE CURRENT PAGE
+            // ------------------------------
+
+            const oldSignature =
+                signature;
 
             scanState.status =
                 "Page " +
@@ -490,14 +849,28 @@
 
             render();
 
+            // ------------------------------
+            // MOVE TO NEXT PAGE
+            // ------------------------------
+
             nextButton.click();
 
-            const nextListings =
-                await waitForNewPage(oldSignature);
+            // ------------------------------
+            // WAIT FOR NEW LISTINGS
+            // ------------------------------
 
-            if (!nextListings.length) {
+            const nextListings =
+                await waitForNewPage(
+                    oldSignature
+                );
+
+            if (
+                !nextListings.length
+            ) {
+
                 scanState.status =
                     "Finished — no new page detected.";
+
                 break;
             }
 
@@ -509,68 +882,140 @@
         render();
     }
 
+    // --------------------------------------------------
+    // MARKET PAGE DETECTION
+    // --------------------------------------------------
+
     function isMarketPage() {
-        return getCurrentListings().length >= 2;
+
+        return (
+            getCurrentListings()
+                .length >= 2
+        );
     }
 
+    // --------------------------------------------------
+    // CREATE ASSISTANT
+    // --------------------------------------------------
+
     function createAssistant() {
-        if (container || !isMarketPage()) return;
 
-        container = document.createElement("div");
+        if (
+            container ||
+            !isMarketPage()
+        ) {
+            return;
+        }
 
-        container.id = "fc27-market-assistant";
+        container =
+            document.createElement(
+                "div"
+            );
+
+        container.id =
+            "fc27-market-assistant";
 
         container.style.cssText = `
             position:fixed;
             right:10px;
             bottom:135px;
             z-index:2147483647;
-            font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
         `;
 
-        document.body.appendChild(container);
+        document.body.appendChild(
+            container
+        );
 
         minimized = true;
+
         render();
     }
 
+    // --------------------------------------------------
+    // REMOVE ASSISTANT
+    // --------------------------------------------------
+
     function removeAssistant() {
+
         if (container) {
+
             container.remove();
+
             container = null;
         }
 
         minimized = true;
     }
 
+    // --------------------------------------------------
+    // PAGE CHECK
+    // --------------------------------------------------
+
     function checkPage() {
-        if (isMarketPage()) {
+
+        if (
+            isMarketPage()
+        ) {
+
             if (!container) {
+
                 createAssistant();
             }
+
         } else {
+
             removeAssistant();
         }
     }
 
-    function scheduleCheck() {
-        if (checkTimer) return;
+    // --------------------------------------------------
+    // MUTATION OBSERVER
+    // --------------------------------------------------
 
-        checkTimer = setTimeout(function () {
-            checkTimer = null;
-            checkPage();
-        }, 300);
+    function scheduleCheck() {
+
+        if (checkTimer) {
+            return;
+        }
+
+        checkTimer =
+            setTimeout(
+                function () {
+
+                    checkTimer = null;
+
+                    checkPage();
+
+                },
+                300
+            );
     }
 
-    const observer = new MutationObserver(scheduleCheck);
+    const observer =
+        new MutationObserver(
+            scheduleCheck
+        );
 
-    observer.observe(document.documentElement, {
-        childList: true,
-        subtree: true
-    });
+    observer.observe(
+        document.documentElement,
+        {
+            childList: true,
+            subtree: true
+        }
+    );
 
-    setInterval(checkPage, 1000);
+    // Backup check
+    setInterval(
+        checkPage,
+        1000
+    );
 
+    // Initial check
     checkPage();
 
 })();
