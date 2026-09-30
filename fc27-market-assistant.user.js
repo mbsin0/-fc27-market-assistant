@@ -18,7 +18,7 @@
     panel.style.cssText = `
         position:fixed;
         right:12px;
-        bottom:12px;
+top:120px;
         z-index:2147483647;
         width:300px;
         max-height:65vh;
