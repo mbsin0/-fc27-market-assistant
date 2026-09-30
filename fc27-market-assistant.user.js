@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FC27 Market Assistant
 // @namespace    mbsin0-fc27
-// @version      0.4.0
+// @version      0.5.0
 // @description  Read-only FC27 Transfer Market listing scanner
 // @match        https://www.ea.com/*
 // @run-at       document-idle
@@ -12,21 +12,53 @@
 
     let container = null;
     let minimized = true;
+    let checkTimer = null;
 
-    function isMarketPage() {
-        const text = document.body?.innerText || "";
+    function isVisible(el) {
+        if (!el || !document.documentElement.contains(el)) return false;
+
+        const style = getComputedStyle(el);
+        const rect = el.getBoundingClientRect();
 
         return (
-            /Search Results/i.test(text) &&
-            /Buy Now/i.test(text)
+            style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            Number(style.opacity || 1) > 0 &&
+            rect.width > 0 &&
+            rect.height > 0
         );
     }
 
-    function createAssistant() {
+    function getListingSignals() {
+        if (!document.body) return [];
 
-        if (container || !isMarketPage()) {
-            return;
-        }
+        const elements = Array.from(
+            document.querySelectorAll("body *")
+        );
+
+        return elements.filter(function (el) {
+            if (!isVisible(el)) return false;
+            if (container && container.contains(el)) return false;
+
+            const text = (el.innerText || "")
+                .replace(/\s+/g, " ")
+                .trim();
+
+            return (
+                /Buy Now\s*:?\s*[\d,]+/i.test(text) &&
+                /Start Price\s*:?\s*[\d,]+/i.test(text)
+            );
+        });
+    }
+
+    function isMarketPage() {
+        const signals = getListingSignals();
+
+        return signals.length >= 2;
+    }
+
+    function createAssistant() {
+        if (container || !isMarketPage()) return;
 
         container = document.createElement("div");
 
@@ -34,26 +66,22 @@
 
         container.style.cssText = `
             position:fixed;
-            right:12px;
-            bottom:125px;
+            right:10px;
+            bottom:135px;
             z-index:2147483647;
             font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
         `;
 
         document.body.appendChild(container);
 
+        minimized = true;
         render();
     }
 
-
     function render() {
-
-        if (!container) {
-            return;
-        }
+        if (!container) return;
 
         if (minimized) {
-
             container.innerHTML = `
                 <button
                     id="fc27-mini-button"
@@ -75,22 +103,15 @@
 
             container
                 .querySelector("#fc27-mini-button")
-                .addEventListener(
-                    "click",
-                    function () {
-
-                        minimized = false;
-                        render();
-
-                    }
-                );
+                .addEventListener("click", function () {
+                    minimized = false;
+                    render();
+                });
 
             return;
         }
 
-
         container.innerHTML = `
-
             <div style="
                 width:280px;
                 max-height:45vh;
@@ -140,218 +161,149 @@
                         ">
                         −
                     </button>
-
                 </div>
-
 
                 <div id="fc27-status"
                     style="
-                    margin-top:12px;
-                    color:#aaa;
-                    font-size:13px;
-                ">
+                        margin-top:12px;
+                        color:#aaa;
+                        font-size:13px;
+                    ">
                     Transfer Market detected ✓
                 </div>
-
 
                 <button
                     id="fc27-scan"
                     style="
-                    width:100%;
-                    margin-top:12px;
-                    padding:11px;
-                    border:0;
-                    border-radius:9px;
-                    background:#39ff00;
-                    color:#001000;
-                    font-weight:800;
-                ">
+                        width:100%;
+                        margin-top:12px;
+                        padding:11px;
+                        border:0;
+                        border-radius:9px;
+                        background:#39ff00;
+                        color:#001000;
+                        font-weight:800;
+                    ">
                     SCAN VISIBLE LISTINGS
                 </button>
 
-
                 <div id="fc27-count"
                     style="
-                    margin-top:12px;
-                    color:#9cff75;
-                    font-size:14px;
-                ">
+                        margin-top:12px;
+                        color:#9cff75;
+                        font-size:14px;
+                    ">
                 </div>
-
 
                 <pre id="fc27-output"
                     style="
-                    white-space:pre-wrap;
-                    word-break:break-word;
-                    font-size:11px;
-                    color:#baffaa;
-                    max-height:220px;
-                    overflow:auto;
-                ">
+                        white-space:pre-wrap;
+                        word-break:break-word;
+                        font-size:11px;
+                        color:#baffaa;
+                        max-height:220px;
+                        overflow:auto;
+                    ">
                 </pre>
-
             </div>
         `;
 
-
         container
             .querySelector("#fc27-minimize")
-            .addEventListener(
-                "click",
-                function () {
-
-                    minimized = true;
-                    render();
-
-                }
-            );
-
+            .addEventListener("click", function () {
+                minimized = true;
+                render();
+            });
 
         container
             .querySelector("#fc27-scan")
-            .addEventListener(
-                "click",
-                scanListings
-            );
+            .addEventListener("click", scanListings);
     }
 
-
     function scanListings() {
+        const signals = getListingSignals();
+        const prices = [];
 
-        const text =
-            document.body?.innerText || "";
+        signals.forEach(function (el) {
+            const text = (el.innerText || "")
+                .replace(/\s+/g, " ");
 
+            const matches =
+                text.match(/Buy Now\s*:?\s*[\d,]+/ig) || [];
 
-        const matches =
-            text.match(
-                /\b\d{1,3}(?:,\d{3})+\b|\b\d{4,6}\b/g
-            ) || [];
+            matches.forEach(function (match) {
+                const number = match.match(/([\d,]+)\s*$/);
 
+                if (!number) return;
 
-        const prices =
-            matches
-                .map(value =>
-                    Number(
-                        value.replace(/,/g, "")
-                    )
-                )
-                .filter(value =>
-                    value >= 500 &&
-                    value <= 15000000
+                const price = Number(
+                    number[1].replace(/,/g, "")
                 );
 
+                if (price >= 500 && price <= 15000000) {
+                    prices.push(price);
+                }
+            });
+        });
 
-        const count =
-            container.querySelector(
-                "#fc27-count"
-            );
-
-
-        const output =
-            container.querySelector(
-                "#fc27-output"
-            );
-
-
-        const status =
-            container.querySelector(
-                "#fc27-status"
-            );
-
-
-        status.textContent =
-            "Transfer Market detected ✓";
-
+        const count = container.querySelector("#fc27-count");
+        const output = container.querySelector("#fc27-output");
 
         count.textContent =
-            "Numbers detected: " +
-            prices.length;
-
+            "Buy Now prices detected: " + prices.length;
 
         if (!prices.length) {
-
             output.textContent =
-                "No readable prices found.";
-
+                "No readable Buy Now prices found.";
             return;
         }
 
-
         output.textContent =
-            prices
-                .map(
-                    (price, index) =>
-                        (index + 1) +
-                        ". " +
-                        price.toLocaleString("en-IN")
-                )
-                .join("\n");
+            prices.map(function (price, index) {
+                return (
+                    (index + 1) +
+                    ". " +
+                    price.toLocaleString("en-IN")
+                );
+            }).join("\n");
     }
 
-
     function removeAssistant() {
-
         if (container) {
-
             container.remove();
-
             container = null;
         }
 
         minimized = true;
     }
 
-
     function checkPage() {
-
         if (isMarketPage()) {
-
             if (!container) {
-
                 createAssistant();
-
             }
-
         } else {
-
             removeAssistant();
-
         }
     }
 
+    function scheduleCheck() {
+        if (checkTimer) return;
 
-    /*
-     * EA FC 27 uses dynamic navigation.
-     */
+        checkTimer = setTimeout(function () {
+            checkTimer = null;
+            checkPage();
+        }, 250);
+    }
 
-    const observer =
-        new MutationObserver(
-            function () {
+    const observer = new MutationObserver(scheduleCheck);
 
-                checkPage();
+    observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true
+    });
 
-            }
-        );
-
-
-    observer.observe(
-        document.documentElement,
-        {
-            childList: true,
-            subtree: true
-        }
-    );
-
-
-    /*
-     * Backup check for EA navigation.
-     */
-
-    setInterval(
-        checkPage,
-        1000
-    );
-
+    setInterval(checkPage, 1000);
 
     checkPage();
 
