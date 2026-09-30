@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FC27 Market Assistant
 // @namespace    mbsin0-fc27
-// @version      0.6.2
+// @version      0.6.3
 // @description  Read-only FC27 Transfer Market scanner
 // @match        https://www.ea.com/*
 // @run-at       document-idle
@@ -58,17 +58,7 @@
     }
 
     // ==================================================
-    // NEW MARKET PAGE DETECTION
-    // ==================================================
-    //
-    // We no longer require the card parser to work
-    // before showing the overlay.
-    //
-    // EA Search Results page contains:
-    // Search Results
-    // Start Price
-    // Buy Now
-    //
+    // SEARCH RESULTS PAGE DETECTION
     // ==================================================
 
     function isSearchResultsPage() {
@@ -126,9 +116,10 @@
                 return;
             }
 
-            // If a direct child already contains
-            // the same complete listing, this is
-            // a parent wrapper.
+            /*
+             * Find the smallest visible element
+             * containing one complete listing.
+             */
             const childContainsListing =
                 Array.from(el.children).some(
                     function (child) {
@@ -193,7 +184,7 @@
     }
 
     // ==================================================
-    // EXTRACT LISTING
+    // EXTRACT ONE LISTING
     // ==================================================
 
     function extractListing(el) {
@@ -230,7 +221,7 @@
     }
 
     // ==================================================
-    // CURRENT PAGE LISTINGS
+    // GET CURRENT PAGE LISTINGS
     // ==================================================
 
     function getCurrentListings() {
@@ -251,6 +242,8 @@
 
     // ==================================================
     // PAGE SIGNATURE
+    //
+    // Timer is deliberately NOT included.
     // ==================================================
 
     function pageSignature(listings) {
@@ -269,7 +262,10 @@
     }
 
     // ==================================================
-    // NEXT BUTTON
+    // FIND NEXT BUTTON
+    //
+    // EA FC mobile can render Next as a custom
+    // element/div instead of a normal button.
     // ==================================================
 
     function findNextButton() {
@@ -277,33 +273,79 @@
         const elements =
             Array.from(
                 document.querySelectorAll(
-                    "button, [role='button'], a"
+                    "body *"
                 )
             );
 
-        return elements.find(
-            function (el) {
+        const next =
+            elements.find(
+                function (el) {
 
-                if (!isVisible(el)) {
-                    return false;
+                    if (!isVisible(el)) {
+                        return false;
+                    }
+
+                    if (
+                        container &&
+                        container.contains(el)
+                    ) {
+                        return false;
+                    }
+
+                    const text =
+                        cleanText(
+                            el.innerText
+                        );
+
+                    return /^Next$/i.test(text);
                 }
+            );
 
-                if (
-                    container &&
-                    container.contains(el)
-                ) {
-                    return false;
-                }
+        if (!next) {
+            return null;
+        }
 
-                const text =
-                    cleanText(
-                        el.innerText
-                    );
+        /*
+         * EA may put "Next" text inside a
+         * clickable wrapper.
+         *
+         * Walk upward until we find the
+         * actual interactive element.
+         */
+        let control = next;
 
-                return /^Next$/i.test(text);
+        while (
+            control.parentElement &&
+            control !== document.body
+        ) {
+
+            const role =
+                control.getAttribute(
+                    "role"
+                );
+
+            const tag =
+                control.tagName.toLowerCase();
+
+            if (
+                tag === "button" ||
+                tag === "a" ||
+                role === "button" ||
+                typeof control.onclick === "function"
+            ) {
+                break;
             }
-        ) || null;
+
+            control =
+                control.parentElement;
+        }
+
+        return control;
     }
+
+    // ==================================================
+    // CHECK IF NEXT IS DISABLED
+    // ==================================================
 
     function isDisabled(el) {
 
@@ -377,7 +419,7 @@
 
     async function waitForNewPage(
         oldSignature,
-        timeout = 6000
+        timeout = 7000
     ) {
 
         const started =
@@ -404,6 +446,11 @@
                     listings
                 );
 
+            /*
+             * We wait until the listing data changes.
+             *
+             * Timer changes are ignored.
+             */
             if (
                 signature &&
                 signature !== oldSignature
@@ -417,7 +464,7 @@
     }
 
     // ==================================================
-    // TIMER
+    // TIMER PARSER
     // ==================================================
 
     function parseSeconds(
@@ -470,6 +517,10 @@
         return null;
     }
 
+    // ==================================================
+    // TIMER LABEL
+    // ==================================================
+
     function timerLabel(
         timeText
     ) {
@@ -513,7 +564,7 @@
     }
 
     // ==================================================
-    // OUTPUT
+    // BUILD OUTPUT
     // ==================================================
 
     function buildOutput() {
@@ -577,7 +628,7 @@
     }
 
     // ==================================================
-    // UI
+    // RENDER UI
     // ==================================================
 
     function render() {
@@ -586,9 +637,9 @@
             return;
         }
 
-        // ------------------------------------------
+        // ------------------------------------------------
         // MINIMIZED
-        // ------------------------------------------
+        // ------------------------------------------------
 
         if (minimized) {
 
@@ -632,9 +683,9 @@
             return;
         }
 
-        // ------------------------------------------
+        // ------------------------------------------------
         // EXPANDED
-        // ------------------------------------------
+        // ------------------------------------------------
 
         const shortTimers =
             scanState.listings.filter(
@@ -777,9 +828,9 @@
             </div>
         `;
 
-        // ------------------------------------------
+        // ------------------------------------------------
         // MINIMIZE
-        // ------------------------------------------
+        // ------------------------------------------------
 
         container
             .querySelector(
@@ -795,9 +846,9 @@
                 }
             );
 
-        // ------------------------------------------
+        // ------------------------------------------------
         // SCAN
-        // ------------------------------------------
+        // ------------------------------------------------
 
         const scanButton =
             container.querySelector(
@@ -829,8 +880,11 @@
         }
 
         scanState.running = true;
+
         scanState.pages = 0;
+
         scanState.listings = [];
+
         scanState.seenPages =
             new Set();
 
@@ -840,6 +894,10 @@
         render();
 
         while (true) {
+
+            // --------------------------------------------
+            // READ CURRENT PAGE
+            // --------------------------------------------
 
             const listings =
                 await waitForListings();
@@ -854,10 +912,18 @@
                 break;
             }
 
+            // --------------------------------------------
+            // PAGE SIGNATURE
+            // --------------------------------------------
+
             const signature =
                 pageSignature(
                     listings
                 );
+
+            // --------------------------------------------
+            // STOP IF SAME PAGE
+            // --------------------------------------------
 
             if (
                 scanState.seenPages.has(
@@ -875,11 +941,25 @@
                 signature
             );
 
-            // IMPORTANT:
-            // Every separate card is retained.
-            // Identical prices are NOT removed.
+            // --------------------------------------------
+            // SAVE PAGE
+            // --------------------------------------------
 
             scanState.pages += 1;
+
+            /*
+             * IMPORTANT:
+             *
+             * We DO NOT remove duplicate prices.
+             *
+             * Example:
+             *
+             * Card 1 = 23,750
+             * Card 2 = 23,750
+             * Card 3 = 23,750
+             *
+             * All three remain.
+             */
 
             scanState.listings.push(
                 ...listings
@@ -893,6 +973,10 @@
                 " listings).";
 
             render();
+
+            // --------------------------------------------
+            // FIND NEXT
+            // --------------------------------------------
 
             const nextButton =
                 findNextButton();
@@ -908,19 +992,38 @@
                 break;
             }
 
+            // --------------------------------------------
+            // SAVE CURRENT SIGNATURE
+            // --------------------------------------------
+
             const oldSignature =
                 signature;
 
             scanState.status =
-                "Loading page " +
-                (
-                    scanState.pages + 1
-                ) +
-                "...";
+                "Page " +
+                scanState.pages +
+                " complete. Loading next page...";
 
             render();
 
-            nextButton.click();
+            // --------------------------------------------
+            // ACTIVATE NEXT
+            // --------------------------------------------
+
+            nextButton.dispatchEvent(
+                new MouseEvent(
+                    "click",
+                    {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window
+                    }
+                )
+            );
+
+            // --------------------------------------------
+            // WAIT FOR NEXT PAGE
+            // --------------------------------------------
 
             const nextListings =
                 await waitForNewPage(
@@ -946,7 +1049,7 @@
     }
 
     // ==================================================
-    // CREATE OVERLAY
+    // CREATE ASSISTANT
     // ==================================================
 
     function createAssistant() {
@@ -988,7 +1091,7 @@
     }
 
     // ==================================================
-    // REMOVE OVERLAY
+    // REMOVE ASSISTANT
     // ==================================================
 
     function removeAssistant() {
@@ -1059,13 +1162,13 @@
         }
     );
 
-    // Backup check
+    // Backup page check
     setInterval(
         checkPage,
         1000
     );
 
-    // Initial check
+    // Initial page check
     checkPage();
 
 })();
