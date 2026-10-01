@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FC27 Market Assistant
 // @namespace    mbsin0-fc27
-// @version      0.6.7
+// @version      0.6.8
 // @description  Read-only FC27 Transfer Market scanner with 10-page limit and draggable floating button
 // @match        https://www.ea.com/*
 // @run-at       document-idle
@@ -242,7 +242,9 @@
             });
 
         const stableText = cleanText(listing.raw)
-            .replace(/\bTime\s+.*?(?=\s+(?:Start Price|Bid|Buy Now)\b|$)/i, "")
+            .replace(/\bTime\s+.*?(?=\s+(?:Start Price|Bid|Buy Now|Sold For)\b|$)/i, "")
+            .replace(/\bBid\s*:?\s*(?:[\d,]+|---)/gi, "")
+            .replace(/\bSold For\s*:?\s*[\d,]+/gi, "")
             .replace(/\s+/g, " ")
             .trim();
 
@@ -308,7 +310,7 @@
 
     function findNextButton() {
         const elements = Array.from(
-            document.querySelectorAll("body *")
+            document.querySelectorAll("button, a, [role='button']")
         );
 
         const next = elements.find(function (el) {
@@ -324,41 +326,13 @@
             }
 
             const text = cleanText(
-                el.innerText
+                el.innerText || el.getAttribute("aria-label")
             );
 
-            return /^Next$/i.test(text);
+            return /^Next\b/i.test(text);
         });
 
-        if (!next) {
-            return null;
-        }
-
-        let control = next;
-
-        while (
-            control.parentElement &&
-            control !== document.body
-        ) {
-            const role =
-                control.getAttribute("role");
-
-            const tag =
-                control.tagName.toLowerCase();
-
-            if (
-                tag === "button" ||
-                tag === "a" ||
-                role === "button" ||
-                typeof control.onclick === "function"
-            ) {
-                break;
-            }
-
-            control = control.parentElement;
-        }
-
-        return control;
+        return next || null;
     }
 
     // =========================================================
@@ -373,6 +347,7 @@
         return (
             el.disabled === true ||
             el.getAttribute("aria-disabled") === "true" ||
+            el.getAttribute("data-disabled") === "true" ||
             /disabled/i.test(el.className || "")
         );
     }
@@ -417,12 +392,13 @@
 
     async function waitForNewPage(
         beforePage,
-        timeout = 9000
+        timeout = 15000
     ) {
         const started = Date.now();
 
         let candidateSignature = "";
         let candidateRepeats = 0;
+        let candidateSince = 0;
 
         while (
             Date.now() - started <
@@ -436,6 +412,7 @@
             if (!currentNodes.length) {
                 candidateSignature = "";
                 candidateRepeats = 0;
+                candidateSince = 0;
                 continue;
             }
 
@@ -443,6 +420,7 @@
             if (!currentPage || !pageChanged(beforePage)) {
                 candidateSignature = "";
                 candidateRepeats = 0;
+                candidateSince = 0;
                 continue;
             }
 
@@ -451,10 +429,30 @@
             } else {
                 candidateSignature = currentPage.signature;
                 candidateRepeats = 1;
+                candidateSince = Date.now();
             }
 
-            if (candidateRepeats >= 2) {
-                return getCurrentListings();
+            if (
+                candidateRepeats >= 5 &&
+                Date.now() - candidateSince >= 1200
+            ) {
+                const settledPage = getPageIdentity();
+                const listings = getCurrentListings();
+
+                if (
+                    settledPage &&
+                    settledPage.signature === candidateSignature &&
+                    listings.length === settledPage.count
+                ) {
+                    return {
+                        identity: settledPage,
+                        listings: listings
+                    };
+                }
+
+                candidateSignature = "";
+                candidateRepeats = 0;
+                candidateSince = 0;
             }
         }
 
@@ -1068,6 +1066,7 @@
         scanState.pages = 0;
         scanState.listings = [];
         const seenPages = new Set();
+        let pageToScan = null;
         scanState.status =
             "Starting scanner...";
 
@@ -1081,8 +1080,9 @@
             scanState.pages <
             MAX_PAGES
         ) {
-            const listings =
-                await waitForListings();
+            const listings = pageToScan
+                ? pageToScan.listings
+                : await waitForListings();
 
             if (!listings.length) {
                 scanState.status =
@@ -1090,7 +1090,11 @@
                 break;
             }
 
-            const page = getPageIdentity();
+            const page = pageToScan
+                ? pageToScan.identity
+                : getPageIdentity();
+            pageToScan = null;
+
             if (!page || seenPages.has(page.signature)) {
                 scanState.status =
                     "Finished — repeated result page detected.";
@@ -1179,33 +1183,24 @@
             // CLICK NEXT
             // -------------------------------------------------
 
-            nextButton.dispatchEvent(
-                new MouseEvent(
-                    "click",
-                    {
-                        bubbles: true,
-                        cancelable: true,
-                        view: window
-                    }
-                )
-            );
+            nextButton.click();
 
             // -------------------------------------------------
             // WAIT FOR NEXT PAGE
             // -------------------------------------------------
 
-            const nextListings =
+            const nextPage =
                 await waitForNewPage(
                     beforePage
                 );
 
-            if (!nextListings.length) {
+            if (!nextPage || !nextPage.listings.length) {
                 scanState.status =
-                    "Finished — no new page detected.";
+                    "Finished — Next was clicked, but the results did not change.";
                 break;
             }
 
-            await wait(500);
+            pageToScan = nextPage;
         }
 
         // =====================================================
