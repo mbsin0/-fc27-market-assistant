@@ -231,17 +231,22 @@
     // PAGE SIGNATURE
     // =========================================================
 
-    function pageSignature(listings) {
-        return listings
-            .map(function (x) {
-                return [
-                    x.startPrice,
-                    x.bid,
-                    x.buyNow,
-                    x.time
-                ].join("|");
+    function listingIdentity(node, listing) {
+        const identityAttributes = Array.from(node.attributes || [])
+            .filter(function (attribute) {
+                return /^(?:id|data-[\w-]*(?:id|asset|item|trade|auction)[\w-]*)$/i
+                    .test(attribute.name);
             })
-            .join(";");
+            .map(function (attribute) {
+                return attribute.name + "=" + attribute.value;
+            });
+
+        const stableText = cleanText(listing.raw)
+            .replace(/\bTime\s+.*?(?=\s+(?:Start Price|Bid|Buy Now)\b|$)/i, "")
+            .replace(/\s+/g, " ")
+            .trim();
+
+        return identityAttributes.join("|") + "::" + stableText;
     }
 
     // =========================================================
@@ -255,23 +260,23 @@
             return null;
         }
 
+        const entries = nodes
+            .map(function (node) {
+                return { node, listing: extractListing(node) };
+            })
+            .filter(function (listing) {
+                return Number.isFinite(listing.listing.buyNow) &&
+                    listing.listing.buyNow >= 500 &&
+                    listing.listing.buyNow <= 15000000;
+            });
+
         return {
-            firstNode: nodes[0],
-            lastNode: nodes[nodes.length - 1],
-
-            firstText: cleanText(
-                nodes[0].innerText
-            ),
-
-            lastText: cleanText(
-                nodes[nodes.length - 1].innerText
-            ),
-
-            count: nodes.length,
-
-            signature: pageSignature(
-                getCurrentListings()
-            )
+            signature: entries
+                .map(function (entry) {
+                    return listingIdentity(entry.node, entry.listing);
+                })
+                .join("\n"),
+            count: entries.length
         };
     }
 
@@ -290,12 +295,10 @@
             return false;
         }
 
-        return (
-            now.firstNode !== before.firstNode ||
-            now.lastNode !== before.lastNode ||
-            now.firstText !== before.firstText ||
-            now.lastText !== before.lastText ||
-            now.count !== before.count
+        return Boolean(
+            now.signature &&
+            now.signature !== before.signature &&
+            now.count > 0
         );
     }
 
@@ -418,7 +421,8 @@
     ) {
         const started = Date.now();
 
-        let sawEmpty = false;
+        let candidateSignature = "";
+        let candidateRepeats = 0;
 
         while (
             Date.now() - started <
@@ -430,57 +434,27 @@
                 getListingCandidates();
 
             if (!currentNodes.length) {
-                sawEmpty = true;
+                candidateSignature = "";
+                candidateRepeats = 0;
                 continue;
             }
 
-            if (
-                sawEmpty ||
-                pageChanged(beforePage)
-            ) {
-                const listings =
-                    getCurrentListings();
-
-                if (listings.length) {
-                    return listings;
-                }
-            }
-        }
-
-        // -----------------------------------------------------
-        // FALLBACK SIGNATURE CHECK
-        // -----------------------------------------------------
-
-        const fallbackStarted =
-            Date.now();
-
-        const oldSignature =
-            beforePage
-                ? beforePage.signature
-                : "";
-
-        while (
-            Date.now() -
-                fallbackStarted <
-            3000
-        ) {
-            await wait(300);
-
-            const listings =
-                getCurrentListings();
-
-            if (!listings.length) {
+            const currentPage = getPageIdentity();
+            if (!currentPage || !pageChanged(beforePage)) {
+                candidateSignature = "";
+                candidateRepeats = 0;
                 continue;
             }
 
-            const signature =
-                pageSignature(listings);
+            if (currentPage.signature === candidateSignature) {
+                candidateRepeats += 1;
+            } else {
+                candidateSignature = currentPage.signature;
+                candidateRepeats = 1;
+            }
 
-            if (
-                signature &&
-                signature !== oldSignature
-            ) {
-                return listings;
+            if (candidateRepeats >= 2) {
+                return getCurrentListings();
             }
         }
 
@@ -1093,6 +1067,7 @@
         scanState.running = true;
         scanState.pages = 0;
         scanState.listings = [];
+        const seenPages = new Set();
         scanState.status =
             "Starting scanner...";
 
@@ -1114,6 +1089,14 @@
                     "No readable listings found.";
                 break;
             }
+
+            const page = getPageIdentity();
+            if (!page || seenPages.has(page.signature)) {
+                scanState.status =
+                    "Finished — repeated result page detected.";
+                break;
+            }
+            seenPages.add(page.signature);
 
             // -------------------------------------------------
             // ADD CURRENT PAGE
