@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FC27 Market Assistant
 // @namespace    mbsin0-fc27
-// @version      0.6.6
+// @version      0.6.7
 // @description  Read-only FC27 Transfer Market scanner with 10-page limit and draggable floating button
 // @match        https://www.ea.com/*
 // @run-at       document-idle
