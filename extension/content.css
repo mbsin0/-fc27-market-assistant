@@ -1,0 +1,51 @@
+#fc27-chrome-assistant {
+  position: fixed; right: 14px; bottom: 24px; z-index: 2147483646;
+  width: 350px; max-width: calc(100vw - 20px); max-height: min(82vh, 760px);
+  overflow: auto; color: #f4f8f5; background: #101713; border: 1px solid #375342;
+  border-radius: 14px; box-shadow: 0 12px 36px #0009;
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; box-sizing: border-box;
+}
+#fc27-chrome-assistant *, #fc27-chrome-assistant *::before, #fc27-chrome-assistant *::after { box-sizing: border-box; }
+#fc27-chrome-assistant button, #fc27-chrome-assistant input { font: inherit; }
+#fc27-chrome-assistant button { cursor: pointer; }
+#fc27-chrome-assistant button:disabled { cursor: not-allowed; opacity: .55; }
+#fc27-chrome-assistant .fc27-hidden { display: none !important; }
+#fc27-chrome-assistant .fc27-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 14px; background: #17231b; border-bottom: 1px solid #2c4333; cursor: move; touch-action: none; user-select: none; }
+#fc27-chrome-assistant .fc27-title { color: #d5ffcb; font-size: 15px; font-weight: 850; letter-spacing: .04em; }
+#fc27-chrome-assistant .fc27-subtitle { margin-top: 3px; color: #9cb5a0; font-size: 9px; letter-spacing: .08em; }
+#fc27-chrome-assistant .fc27-icon-button { width: 30px; height: 30px; border: 1px solid #42634a; border-radius: 8px; color: #e5f4e8; background: #223329; font-size: 19px; line-height: 1; }
+#fc27-chrome-assistant .fc27-main { padding: 12px 14px 14px; }
+#fc27-chrome-assistant .fc27-status { min-height: 34px; margin-bottom: 10px; padding: 8px 9px; border-radius: 8px; color: #c9e6cf; background: #17231b; overflow-wrap: anywhere; }
+#fc27-chrome-assistant .fc27-field { display: block; min-width: 0; color: #9cb5a0; font-size: 11px; }
+#fc27-chrome-assistant .fc27-field span { display: block; margin-bottom: 4px; }
+#fc27-chrome-assistant .fc27-debug-toggle { display: flex; align-items: center; gap: 7px; margin-top: 8px; color: #b6cbb9; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+#fc27-chrome-assistant .fc27-debug-toggle input { width: 14px; min-width: 14px; height: 14px; margin: 0; accent-color: #9bea79; }
+#fc27-chrome-assistant .fc27-audit { max-height: 240px; overflow: auto; margin: 7px 0 0; padding: 8px; border: 1px solid #354a3a; border-radius: 7px; color: #bed2c1; background: #080d0a; font: 10px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+#fc27-chrome-assistant input { width: 100%; min-width: 0; height: 34px; padding: 6px 8px; border: 1px solid #354a3a; border-radius: 7px; outline: none; color: #f4f8f5; background: #0a100c; }
+#fc27-chrome-assistant input:focus { border-color: #9bea79; }
+#fc27-chrome-assistant input[readonly] { color: #d0e4d4; }
+#fc27-chrome-assistant .fc27-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 9px; }
+#fc27-chrome-assistant .fc27-actions, #fc27-chrome-assistant .fc27-mini-actions { display: flex; gap: 8px; margin-top: 11px; }
+#fc27-chrome-assistant .fc27-button { min-height: 34px; padding: 7px 10px; border: 1px solid transparent; border-radius: 8px; font-weight: 800; letter-spacing: .04em; }
+#fc27-chrome-assistant .fc27-button-primary { flex: 1; color: #09200b; background: #9bea79; }
+#fc27-chrome-assistant .fc27-button-stop { color: #ffdcdc; background: #472626; border-color: #784040; }
+#fc27-chrome-assistant .fc27-button-secondary { color: #d8ebdc; background: #26372b; border-color: #3b5541; }
+#fc27-chrome-assistant .fc27-results { margin-top: 13px; padding-top: 11px; border-top: 1px solid #2b3e30; }
+#fc27-chrome-assistant .fc27-section-title { margin-bottom: 7px; color: #a9cfad; font-size: 10px; font-weight: 850; letter-spacing: .12em; }
+#fc27-chrome-assistant .fc27-found-title { margin-top: 12px; }
+#fc27-chrome-assistant .fc27-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 12px; }
+#fc27-chrome-assistant .fc27-metric { display: flex; justify-content: space-between; gap: 7px; color: #9cb5a0; font-size: 11px; }
+#fc27-chrome-assistant .fc27-metric strong { color: #f0fff1; text-align: right; }
+#fc27-chrome-assistant .fc27-finding { margin-top: 7px; padding: 10px; border: 1px solid #85dd67; border-radius: 9px; background: #19271c; box-shadow: inset 3px 0 #9bea79; }
+#fc27-chrome-assistant .fc27-finding-heading { color: #e8ffe1; font-size: 13px; font-weight: 850; }
+#fc27-chrome-assistant .fc27-finding-details { margin: 4px 0 8px; color: #bed2c1; font-size: 11px; }
+#fc27-chrome-assistant .fc27-button-manual { width: 100%; color: #f4f8f5; background: #314533; border-color: #61845e; }
+#fc27-chrome-assistant .fc27-empty { padding: 9px; color: #91a494; font-size: 11px; }
+#fc27-chrome-assistant .fc27-note { margin-top: 11px; color: #819286; font-size: 10px; }
+#fc27-chrome-assistant .fc27-mini { padding: 11px 13px 13px; }
+#fc27-chrome-assistant .fc27-mini-status { color: #bed2c1; font-size: 11px; }
+#fc27-chrome-assistant .fc27-mini-found { margin-top: 5px; color: #dfffce; font-size: 12px; font-weight: 750; }
+#fc27-chrome-assistant .fc27-mini-metrics { margin-top: 4px; color: #9cb5a0; font-size: 10px; }
+#fc27-chrome-assistant.fc27-is-minimized { width: 320px; }
+body [data-fc27-highlight="true"] { outline: 3px solid #9bea79 !important; outline-offset: 3px !important; }
+@media (max-width: 480px) { #fc27-chrome-assistant { right: 8px; bottom: 8px; width: 330px; max-width: calc(100vw - 16px); } }

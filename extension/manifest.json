@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "FC27 Market Assistant",
+  "version": "0.1.0",
+  "description": "Read-only Transfer Market listing analysis for the EA FC Web App.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.ea.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "FC27 Market Assistant",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.ea.com/ea-sports-fc/ultimate-team/web-app/*"],
+      "js": [
+        "market-adapter.js",
+        "price-engine.js",
+        "search-engine.js",
+        "content.js"
+      ],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
