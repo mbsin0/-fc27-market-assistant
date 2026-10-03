@@ -1,6 +1,7 @@
 "use strict";
 
 const SETTINGS_KEY = "fc27SessionSettings";
+const TARGET_PLAYER_KEY = "fc27SessionTargetPlayer";
 const DEFAULT_SETTINGS = Object.freeze({
   maxBin: 30000,
   minimumProfit: 500,
@@ -42,6 +43,23 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     chrome.storage.session.set({ [SETTINGS_KEY]: settings }).then(() => {
       sendResponse({ ok: true, settings });
     }).catch(() => sendResponse({ ok: false, settings }));
+    return true;
+  }
+
+  if (message.type === "FC27_GET_TARGET_PLAYER") {
+    chrome.storage.session.get(TARGET_PLAYER_KEY).then((stored) => {
+      sendResponse({ targetPlayerName: stored[TARGET_PLAYER_KEY] || "" });
+    }).catch(() => sendResponse({ targetPlayerName: "" }));
+    return true;
+  }
+
+  if (message.type === "FC27_SAVE_TARGET_PLAYER") {
+    const targetPlayerName = typeof message.targetPlayerName === "string"
+      ? message.targetPlayerName.replace(/\s+/g, " ").trim().slice(0, 80)
+      : "";
+    chrome.storage.session.set({ [TARGET_PLAYER_KEY]: targetPlayerName }).then(() => {
+      sendResponse({ ok: true });
+    }).catch(() => sendResponse({ ok: false }));
     return true;
   }
 

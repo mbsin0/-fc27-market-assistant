@@ -19,6 +19,7 @@
         "market-adapter.js",
         "price-engine.js",
         "search-engine.js",
+        "assistant-ui.js",
         "content.js"
       ],
       "css": ["content.css"],

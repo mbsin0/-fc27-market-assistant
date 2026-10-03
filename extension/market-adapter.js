@@ -6,6 +6,7 @@
   const EA_NEXT_SELECTOR = "button.flat.pagination.next";
   const LISTING_LABELS = /Start Price\s*:?\s*[\d,]+[\s\S]*Buy Now\s*:?\s*[\d,]+|Buy Now\s*:?\s*[\d,]+[\s\S]*Start Price\s*:?\s*[\d,]+/i;
   const ID_ATTRIBUTE = /(?:auction|trade|listing|item|asset|player|card).*id|^data-id$|^id$/i;
+  let capturedTargetPlayerName = "";
 
   function cleanText(value) { return String(value || "").replace(/\s+/g, " ").trim(); }
   function detectViewFromText(text, hasListings) {
@@ -77,6 +78,12 @@
     }
     return "";
   }
+  function rememberTargetPlayerName(value) {
+    const name = cleanText(value).replace(/\s+(?:remove|clear|selected)$/i, "").trim();
+    if (isMeaningfulPlayerName(name)) capturedTargetPlayerName = name;
+    return capturedTargetPlayerName;
+  }
+  function getCapturedTargetPlayerName() { return capturedTargetPlayerName; }
   function readCurrentFilters(scope) {
     const rootElement = scope || document;
     return Array.from(rootElement.querySelectorAll("input:not([type='hidden']), select, textarea, [role='combobox'], [role='checkbox'], [role='radio'], [contenteditable='true']"))
@@ -392,7 +399,7 @@
     try {
       const rect = control.getBoundingClientRect();
       const style = getComputedStyle(control);
-      if (control.matches && control.matches(EA_NEXT_SELECTOR) && root.console && typeof root.console.debug === "function") {
+      if (root.FC27_DEBUG_MARKET_SCAN === true && control.matches && control.matches(EA_NEXT_SELECTOR) && root.console && typeof root.console.debug === "function") {
         root.console.debug("[FC27 Market Assistant] EA Next control diagnostic", {
           selector: EA_NEXT_SELECTOR,
           outerHTML: control.outerHTML,
@@ -436,6 +443,7 @@
   }
   root.FC27MarketAdapter = Object.freeze({
     VIEW, cleanText, detectViewFromText, detectView, parseListingText, parseListingTexts, readTargetPlayerName,
+    rememberTargetPlayerName, getCapturedTargetPlayerName,
     readCurrentFilters, findSearchControl, triggerSearch, hasReadableFilterForm, isLoginVisible,
     getUnsafeReason, readVisibleListings, captureResults, isSearchBusy, waitForFreshResults,
     waitForSettledResults, waitForChangedResults, findNextControl, getNextControlStatus,

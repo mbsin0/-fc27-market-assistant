@@ -1,51 +1,81 @@
-#fc27-chrome-assistant {
-  position: fixed; right: 14px; bottom: 24px; z-index: 2147483646;
-  width: 350px; max-width: calc(100vw - 20px); max-height: min(82vh, 760px);
-  overflow: auto; color: #f4f8f5; background: #101713; border: 1px solid #375342;
-  border-radius: 14px; box-shadow: 0 12px 36px #0009;
-  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; box-sizing: border-box;
+#fc27-market-assistant-page {
+  position: fixed; inset: 0; z-index: 2147483647; display: grid; place-items: center;
+  padding: 24px; color: #eef5ef; background: rgba(7, 12, 9, .97);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  box-sizing: border-box;
 }
-#fc27-chrome-assistant *, #fc27-chrome-assistant *::before, #fc27-chrome-assistant *::after { box-sizing: border-box; }
-#fc27-chrome-assistant button, #fc27-chrome-assistant input { font: inherit; }
-#fc27-chrome-assistant button { cursor: pointer; }
-#fc27-chrome-assistant button:disabled { cursor: not-allowed; opacity: .55; }
-#fc27-chrome-assistant .fc27-hidden { display: none !important; }
-#fc27-chrome-assistant .fc27-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 14px; background: #17231b; border-bottom: 1px solid #2c4333; cursor: move; touch-action: none; user-select: none; }
-#fc27-chrome-assistant .fc27-title { color: #d5ffcb; font-size: 15px; font-weight: 850; letter-spacing: .04em; }
-#fc27-chrome-assistant .fc27-subtitle { margin-top: 3px; color: #9cb5a0; font-size: 9px; letter-spacing: .08em; }
-#fc27-chrome-assistant .fc27-icon-button { width: 30px; height: 30px; border: 1px solid #42634a; border-radius: 8px; color: #e5f4e8; background: #223329; font-size: 19px; line-height: 1; }
-#fc27-chrome-assistant .fc27-main { padding: 12px 14px 14px; }
-#fc27-chrome-assistant .fc27-status { min-height: 34px; margin-bottom: 10px; padding: 8px 9px; border-radius: 8px; color: #c9e6cf; background: #17231b; overflow-wrap: anywhere; }
-#fc27-chrome-assistant .fc27-field { display: block; min-width: 0; color: #9cb5a0; font-size: 11px; }
-#fc27-chrome-assistant .fc27-field span { display: block; margin-bottom: 4px; }
-#fc27-chrome-assistant .fc27-debug-toggle { display: flex; align-items: center; gap: 7px; margin-top: 8px; color: #b6cbb9; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
-#fc27-chrome-assistant .fc27-debug-toggle input { width: 14px; min-width: 14px; height: 14px; margin: 0; accent-color: #9bea79; }
-#fc27-chrome-assistant .fc27-audit { max-height: 240px; overflow: auto; margin: 7px 0 0; padding: 8px; border: 1px solid #354a3a; border-radius: 7px; color: #bed2c1; background: #080d0a; font: 10px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
-#fc27-chrome-assistant input { width: 100%; min-width: 0; height: 34px; padding: 6px 8px; border: 1px solid #354a3a; border-radius: 7px; outline: none; color: #f4f8f5; background: #0a100c; }
-#fc27-chrome-assistant input:focus { border-color: #9bea79; }
-#fc27-chrome-assistant input[readonly] { color: #d0e4d4; }
-#fc27-chrome-assistant .fc27-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 9px; }
-#fc27-chrome-assistant .fc27-actions, #fc27-chrome-assistant .fc27-mini-actions { display: flex; gap: 8px; margin-top: 11px; }
-#fc27-chrome-assistant .fc27-button { min-height: 34px; padding: 7px 10px; border: 1px solid transparent; border-radius: 8px; font-weight: 800; letter-spacing: .04em; }
-#fc27-chrome-assistant .fc27-button-primary { flex: 1; color: #09200b; background: #9bea79; }
-#fc27-chrome-assistant .fc27-button-stop { color: #ffdcdc; background: #472626; border-color: #784040; }
-#fc27-chrome-assistant .fc27-button-secondary { color: #d8ebdc; background: #26372b; border-color: #3b5541; }
-#fc27-chrome-assistant .fc27-results { margin-top: 13px; padding-top: 11px; border-top: 1px solid #2b3e30; }
-#fc27-chrome-assistant .fc27-section-title { margin-bottom: 7px; color: #a9cfad; font-size: 10px; font-weight: 850; letter-spacing: .12em; }
-#fc27-chrome-assistant .fc27-found-title { margin-top: 12px; }
-#fc27-chrome-assistant .fc27-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 12px; }
-#fc27-chrome-assistant .fc27-metric { display: flex; justify-content: space-between; gap: 7px; color: #9cb5a0; font-size: 11px; }
-#fc27-chrome-assistant .fc27-metric strong { color: #f0fff1; text-align: right; }
-#fc27-chrome-assistant .fc27-finding { margin-top: 7px; padding: 10px; border: 1px solid #85dd67; border-radius: 9px; background: #19271c; box-shadow: inset 3px 0 #9bea79; }
-#fc27-chrome-assistant .fc27-finding-heading { color: #e8ffe1; font-size: 13px; font-weight: 850; }
-#fc27-chrome-assistant .fc27-finding-details { margin: 4px 0 8px; color: #bed2c1; font-size: 11px; }
-#fc27-chrome-assistant .fc27-button-manual { width: 100%; color: #f4f8f5; background: #314533; border-color: #61845e; }
-#fc27-chrome-assistant .fc27-empty { padding: 9px; color: #91a494; font-size: 11px; }
-#fc27-chrome-assistant .fc27-note { margin-top: 11px; color: #819286; font-size: 10px; }
-#fc27-chrome-assistant .fc27-mini { padding: 11px 13px 13px; }
-#fc27-chrome-assistant .fc27-mini-status { color: #bed2c1; font-size: 11px; }
-#fc27-chrome-assistant .fc27-mini-found { margin-top: 5px; color: #dfffce; font-size: 12px; font-weight: 750; }
-#fc27-chrome-assistant .fc27-mini-metrics { margin-top: 4px; color: #9cb5a0; font-size: 10px; }
-#fc27-chrome-assistant.fc27-is-minimized { width: 320px; }
-body [data-fc27-highlight="true"] { outline: 3px solid #9bea79 !important; outline-offset: 3px !important; }
-@media (max-width: 480px) { #fc27-chrome-assistant { right: 8px; bottom: 8px; width: 330px; max-width: calc(100vw - 16px); } }
+#fc27-market-assistant-page[hidden] { display: none !important; }
+#fc27-market-assistant-page *, #fc27-market-assistant-page *::before, #fc27-market-assistant-page *::after { box-sizing: border-box; }
+#fc27-market-assistant-page button, #fc27-market-assistant-page input { font: inherit; }
+#fc27-market-assistant-page button { cursor: pointer; }
+#fc27-market-assistant-page button:disabled { cursor: not-allowed; opacity: .5; }
+#fc27-market-assistant-page .fc27-hidden { display: none !important; }
+#fc27-market-assistant-page .fc27-assistant-shell {
+  position: relative; display: flex; flex-direction: column; width: min(620px, 100%); max-height: min(850px, 94vh);
+  overflow: hidden; border: 1px solid #425c48; border-radius: 17px; background: #101713;
+  box-shadow: 0 24px 80px #000b;
+}
+#fc27-market-assistant-page .fc27-page-header { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 19px 22px; border-bottom: 1px solid #2d4032; background: #17221a; cursor: move; touch-action: none; user-select: none; }
+#fc27-market-assistant-page .fc27-page-kicker, #fc27-market-assistant-page .fc27-label { display: block; color: #9bb39f; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+#fc27-market-assistant-page h1 { margin: 4px 0 0; color: #e3ffda; font-size: 21px; line-height: 1.2; letter-spacing: .035em; }
+#fc27-market-assistant-page h2 { margin: 3px 0 0; font-size: 16px; letter-spacing: .045em; }
+#fc27-market-assistant-page .fc27-header-actions { display: flex; align-items: center; gap: 8px; }
+#fc27-market-assistant-page .fc27-icon-button { width: 34px; height: 34px; border: 1px solid #47614c; border-radius: 9px; color: #e9f5eb; background: #26362a; font-size: 21px; }
+#fc27-market-assistant-page .fc27-page-main { overflow: auto; padding: 18px 22px 22px; }
+#fc27-market-assistant-page .fc27-topline, #fc27-market-assistant-page .fc27-section-heading, #fc27-market-assistant-page .fc27-debug-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+#fc27-market-assistant-page .fc27-topline > div strong { display: block; margin-top: 4px; font-size: 17px; }
+#fc27-market-assistant-page .fc27-button { min-height: 34px; padding: 7px 11px; border: 1px solid transparent; border-radius: 8px; font-size: 11px; font-weight: 850; letter-spacing: .045em; }
+#fc27-market-assistant-page .fc27-button-subtle { color: #d9e9dc; border-color: #405745; background: #243329; }
+#fc27-market-assistant-page .fc27-debug-toggle[aria-pressed="true"] { color: #11200f; border-color: #9bea79; background: #9bea79; }
+#fc27-market-assistant-page .fc27-player-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 17px; padding: 14px; border: 1px solid #2d4032; border-radius: 11px; background: #151e18; }
+#fc27-market-assistant-page .fc27-player-row strong { display: block; margin-top: 4px; color: #f5fff5; font-size: 16px; overflow-wrap: anywhere; }
+#fc27-market-assistant-page .fc27-lowest-section { margin-top: 18px; padding: 15px; border: 1px solid #354b38; border-radius: 12px; background: #141d17; }
+#fc27-market-assistant-page .fc27-price-row { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 8px; min-height: 44px; padding: 5px 8px; border-bottom: 1px solid #28382c; }
+#fc27-market-assistant-page .fc27-price-row:last-child { border-bottom: 0; }
+#fc27-market-assistant-page .fc27-price-row strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+#fc27-market-assistant-page .fc27-price-row > span:last-child { color: #a9bcae; font-size: 12px; }
+#fc27-market-assistant-page .fc27-price-row-1 strong { color: #d7ffb7; }
+#fc27-market-assistant-page .fc27-price-rank { font-size: 18px; }
+#fc27-market-assistant-page .fc27-no-prices { padding: 12px 8px 3px; color: #99aa9d; font-size: 11px; font-weight: 800; letter-spacing: .1em; }
+#fc27-market-assistant-page .fc27-lowest-expanded { margin-top: 8px; padding: 8px; border-radius: 8px; background: #0d130f; }
+#fc27-market-assistant-page .fc27-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; margin-top: 15px; padding: 13px 14px; border-radius: 11px; background: #0d130f; }
+#fc27-market-assistant-page .fc27-stat { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; min-width: 0; color: #a2b4a5; font-size: 11px; }
+#fc27-market-assistant-page .fc27-stat strong { color: #f0fff1; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
+#fc27-market-assistant-page .fc27-controls-panel { margin-top: 14px; padding: 12px 13px; border: 1px solid #2e4032; border-radius: 10px; }
+#fc27-market-assistant-page .fc27-controls-panel summary { color: #c3d5c7; font-size: 12px; font-weight: 750; cursor: pointer; }
+#fc27-market-assistant-page .fc27-settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+#fc27-market-assistant-page .fc27-settings-grid label span { display: block; margin-bottom: 4px; color: #9bb39f; font-size: 10px; }
+#fc27-market-assistant-page input { width: 100%; height: 34px; padding: 6px 8px; border: 1px solid #394d3d; border-radius: 7px; outline: none; color: #eef5ef; background: #0b110d; }
+#fc27-market-assistant-page input:focus { border-color: #9bea79; }
+#fc27-market-assistant-page .fc27-action-row { display: flex; gap: 9px; margin-top: 13px; }
+#fc27-market-assistant-page .fc27-button-primary { flex: 1; color: #0b200c; background: #9bea79; }
+#fc27-market-assistant-page .fc27-button-stop { min-width: 90px; color: #ffe4e4; border-color: #744848; background: #462828; }
+#fc27-market-assistant-page .fc27-found-section { margin-top: 17px; }
+#fc27-market-assistant-page .fc27-finding { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 8px; margin-top: 7px; padding: 10px; border: 1px solid #58704c; border-radius: 9px; background: #18241b; }
+#fc27-market-assistant-page .fc27-finding > strong { color: #e8ffe1; }
+#fc27-market-assistant-page .fc27-finding > span { color: #afc3b2; font-size: 11px; }
+#fc27-market-assistant-page .fc27-finding > button { grid-column: 2; grid-row: 1 / span 2; }
+#fc27-market-assistant-page .fc27-empty { margin-top: 8px; color: #97a89a; font-size: 12px; }
+#fc27-market-assistant-page .fc27-debug-panel { margin-top: 16px; padding: 12px; border: 1px solid #394d3d; border-radius: 10px; background: #0a100c; }
+#fc27-market-assistant-page .fc27-debug-panel pre { max-height: 280px; overflow: auto; margin: 10px 0 0; color: #c2d4c5; font: 10px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+#fc27-market-assistant-page .fc27-copy-status { min-height: 16px; margin-top: 6px; color: #cfffbd; font-size: 11px; }
+#fc27-market-assistant-page .fc27-mini { padding: 17px; }
+#fc27-market-assistant-page .fc27-mini-label { color: #b2c8b5; font-size: 10px; font-weight: 850; letter-spacing: .1em; }
+#fc27-market-assistant-page .fc27-mini strong { display: block; margin-top: 6px; color: #e2ffda; font-size: 16px; }
+#fc27-market-assistant-page #fc27-mini-summary { margin-top: 6px; color: #c1d0c4; font-size: 12px; }
+#fc27-market-assistant-page .fc27-mini-actions { display: flex; gap: 8px; margin-top: 12px; }
+#fc27-market-assistant-page .fc27-button-secondary { color: #ecf6ed; border-color: #4a604e; background: #26382b; }
+#fc27-market-assistant-page .fc27-is-minimized { width: min(340px, calc(100vw - 24px)); max-height: 210px; overflow: auto; }
+#fc27-market-assistant-page .fc27-is-minimized .fc27-page-header { padding: 12px 15px; }
+#fc27-market-assistant-page .fc27-is-minimized h1 { font-size: 14px; }
+#fc27-market-assistant-page .fc27-is-minimized .fc27-page-kicker, #fc27-market-assistant-page .fc27-is-minimized #fc27-back-to-ea { display: none; }
+#fc27-market-assistant-nav-entry { list-style: none; }
+#fc27-market-assistant-nav-entry .fc27-nav-button { display: block; width: 100%; min-height: 38px; padding: 8px 14px; border: 0; color: inherit; background: transparent; text-align: left; font: inherit; cursor: pointer; }
+#fc27-market-assistant-nav-entry .fc27-nav-button:hover, #fc27-market-assistant-nav-entry .fc27-nav-button:focus-visible { outline: 0; color: #e5ffdb; background: rgba(139, 200, 130, .15); }
+@media (max-width: 560px) {
+  #fc27-market-assistant-page { padding: 8px; }
+  #fc27-market-assistant-page .fc27-page-header { padding: 14px; }
+  #fc27-market-assistant-page .fc27-page-main { padding: 14px; }
+  #fc27-market-assistant-page h1 { font-size: 17px; }
+  #fc27-market-assistant-page .fc27-topline { align-items: flex-start; }
+}

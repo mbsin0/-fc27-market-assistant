@@ -265,11 +265,13 @@ test("confirmed EA Next selector chooses the visible enabled button and sends on
   const oldMouseEvent = globalThis.MouseEvent;
   const oldPointerEvent = globalThis.PointerEvent;
   const oldConsole = globalThis.console;
+  const oldDebugScan = globalThis.FC27_DEBUG_MARKET_SCAN;
   const diagnostic = [];
   class EventMock { constructor(type) { this.type = type; } }
   globalThis.MouseEvent = EventMock;
   globalThis.PointerEvent = EventMock;
   globalThis.console = { debug: (...args) => diagnostic.push(args) };
+  globalThis.FC27_DEBUG_MARKET_SCAN = true;
   const hiddenDuplicate = {
     tagName: "BUTTON", className: "flat pagination next", innerText: "Next", textContent: "Next", disabled: false,
     __style: { display: "none", visibility: "hidden", opacity: "0" },
@@ -298,6 +300,7 @@ test("confirmed EA Next selector chooses the visible enabled button and sends on
     globalThis.MouseEvent = oldMouseEvent;
     globalThis.PointerEvent = oldPointerEvent;
     globalThis.console = oldConsole;
+    globalThis.FC27_DEBUG_MARKET_SCAN = oldDebugScan;
     restore();
   }
 });

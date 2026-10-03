@@ -84,13 +84,15 @@
       running: false, status: "Ready", phase: "START", targetFilter: "Not configured in this session",
       targetPlayerName: "", currentResultsPlayer: "Not scanned", pagesScanned: 0, pagesConfirmed: 0, pagesRequested: 0, listingsScanned: 0,
       uniqueListingsScanned: 0, repeatedListingObservations: 0,
-      metrics: null, findings: [], nextPageAvailable: false, pageAudit: []
+      metrics: null, findings: [], scannedListings: [], nextPageAvailable: false, pageAudit: []
     };
     let controller = null;
     let runId = 0;
 
     function publish() {
-      onState({ ...state, findings: [...state.findings], metrics: state.metrics && { ...state.metrics }, pageAudit: state.pageAudit.map((entry) => ({ ...entry })) });
+      onState({ ...state, findings: [...state.findings], metrics: state.metrics && { ...state.metrics },
+        scannedListings: state.scannedListings.map(({ element: _element, ...listing }) => ({ ...listing })),
+        pageAudit: state.pageAudit.map((entry) => ({ ...entry })) });
     }
     function finish(message) {
       state.running = false;
@@ -121,6 +123,7 @@
       state.pagesConfirmed = 0;
       state.listingsScanned = 0;
       state.uniqueListingsScanned = 0;
+      state.scannedListings = [];
       state.repeatedListingObservations = 0;
       state.currentResultsPlayer = "Not scanned";
       state.metrics = null;
@@ -137,6 +140,13 @@
         const view = adapter.detectView();
         let page;
         if (view === adapter.VIEW.RESULTS) {
+          if (typeof adapter.getCapturedTargetPlayerName === "function") {
+            const capturedTarget = adapter.getCapturedTargetPlayerName();
+            if (capturedTarget) {
+              state.targetPlayerName = capturedTarget;
+              state.targetFilter = capturedTarget;
+            }
+          }
           state.status = "RESULTS VIEW DETECTED";
           publish();
           state.status = "READING RESULTS";
@@ -152,6 +162,7 @@
           const playerName = typeof adapter.readTargetPlayerName === "function" ? adapter.readTargetPlayerName() : "";
           state.targetPlayerName = playerName || "";
           state.targetFilter = playerName || "Player not selected";
+          if (playerName && typeof adapter.rememberTargetPlayerName === "function") adapter.rememberTargetPlayerName(playerName);
           publish();
           state.status = playerName ? `TARGET: ${playerName}` : "TARGET: Player not selected";
           publish();
@@ -211,9 +222,10 @@
             allListings.push({ ...listing, listingIdentity: identity, pageNumber: state.pagesScanned + 1 });
           });
           state.pagesScanned += 1;
-          state.listingsScanned = allListings.length;
+          state.listingsScanned += page.listings.length;
           state.uniqueListingsScanned = allListings.length;
-          state.currentResultsPlayer = summarizeResultIdentity(page.listings);
+          state.scannedListings = allListings;
+          state.currentResultsPlayer = summarizeResultIdentity(allListings);
           const analysis = root.FC27PriceEngine.analyzeListings(allListings, criteria);
           state.metrics = analysis.summary;
           state.findings = analysis.findings;
